@@ -18,6 +18,9 @@ import android.widget.TableRow
 import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
 
@@ -25,38 +28,158 @@ private lateinit var root: LinearLayout
 private val sheetNames = ArrayList<String>()
 private lateinit var jsonData: JSONObject
 
+private val jsonUrl =
+    "https://raw.githubusercontent.com/mehmetkm6005-cell/IsletmeTakipAPK/main/app/src/main/assets/isletme_takip_data.json"
+
 private fun dp(value: Int): Int {
     return (value * resources.displayMetrics.density).toInt()
 }
 
 override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    loadData()
+
+    // Önce ekrana giriş ekranını getir
     showLoginScreen()
+
+    // Sonra GitHub'daki güncel JSON'u indir
+    loadDataFromGitHub()
 }
 
-private fun loadData() {
+private fun loadDataFromGitHub() {
+
+    thread {
+
+        try {
+
+            val url = URL(jsonUrl)
+
+            val connection =
+                url.openConnection() as HttpURLConnection
+
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 15000
+            connection.readTimeout = 15000
+            connection.setRequestProperty(
+                "Cache-Control",
+                "no-cache"
+            )
+
+            val responseCode = connection.responseCode
+
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                throw Exception(
+                    "GitHub bağlantısı başarısız. Kod: $responseCode"
+                )
+            }
+
+            val text =
+                connection.inputStream
+                    .bufferedReader()
+                    .use { it.readText() }
+
+            connection.disconnect()
+
+            val newJson =
+                JSONObject(text)
+
+            val sheets =
+                newJson.getJSONObject("sheets")
+
+            val newSheetNames =
+                ArrayList<String>()
+
+            val keys = sheets.keys()
+
+            while (keys.hasNext()) {
+
+                val name = keys.next()
+
+                if (name == "ANA SAYFA") {
+                    continue
+                }
+
+                if (name.endsWith(
+                        "-data",
+                        ignoreCase = true
+                    )
+                ) {
+                    continue
+                }
+
+                newSheetNames.add(name)
+            }
+
+            runOnUiThread {
+
+                jsonData = newJson
+
+                sheetNames.clear()
+                sheetNames.addAll(newSheetNames)
+
+                Toast.makeText(
+                    this,
+                    "Güncel veriler GitHub'dan alındı.",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+            }
+
+        } catch (e: Exception) {
+
+            runOnUiThread {
+
+                Toast.makeText(
+                    this,
+                    "Güncel veri alınamadı.\n" +
+                            "Hata: " +
+                            e.message,
+                    Toast.LENGTH_LONG
+                ).show()
+
+                // İnternet bağlantısı olmazsa APK içine
+                // gömülü eski JSON'u kullanmayı dene
+                loadLocalData()
+            }
+        }
+    }
+}
+
+private fun loadLocalData() {
+
     try {
-        val text = assets.open("isletme_takip_data.json")
-            .bufferedReader()
-            .use { it.readText() }
 
-        jsonData = JSONObject(text)
+        val text =
+            assets.open(
+                "isletme_takip_data.json"
+            )
+                .bufferedReader()
+                .use { it.readText() }
 
-        val sheets = jsonData.getJSONObject("sheets")
+        jsonData =
+            JSONObject(text)
+
+        val sheets =
+            jsonData.getJSONObject("sheets")
 
         sheetNames.clear()
 
-        val keys = sheets.keys()
+        val keys =
+            sheets.keys()
 
         while (keys.hasNext()) {
-            val name = keys.next()
+
+            val name =
+                keys.next()
 
             if (name == "ANA SAYFA") {
                 continue
             }
 
-            if (name.endsWith("-data", ignoreCase = true)) {
+            if (name.endsWith(
+                    "-data",
+                    ignoreCase = true
+                )
+            ) {
                 continue
             }
 
@@ -64,18 +187,27 @@ private fun loadData() {
         }
 
     } catch (e: Exception) {
+
         Toast.makeText(
             this,
-            "JSON okunamadı: " + e.message,
+            "JSON okunamadı: " +
+                    e.message,
             Toast.LENGTH_LONG
         ).show()
     }
 }
 
 private fun createRoot() {
-    root = LinearLayout(this)
-    root.orientation = LinearLayout.VERTICAL
-    root.setBackgroundColor(Color.WHITE)
+
+    root =
+        LinearLayout(this)
+
+    root.orientation =
+        LinearLayout.VERTICAL
+
+    root.setBackgroundColor(
+        Color.WHITE
+    )
 
     root.setPadding(
         dp(12),
@@ -88,19 +220,42 @@ private fun createRoot() {
 }
 
 private fun addLogoBar() {
-    val bar = LinearLayout(this)
 
-    bar.orientation = LinearLayout.HORIZONTAL
-    bar.gravity = Gravity.CENTER_VERTICAL
+    val bar =
+        LinearLayout(this)
 
-    val logo = TextView(this)
+    bar.orientation =
+        LinearLayout.HORIZONTAL
+
+    bar.gravity =
+        Gravity.CENTER_VERTICAL
+
+    val logo =
+        TextView(this)
 
     logo.text = "İT"
+
     logo.textSize = 20f
-    logo.setTypeface(null, Typeface.BOLD)
-    logo.gravity = Gravity.CENTER
-    logo.setTextColor(Color.WHITE)
-    logo.setBackgroundColor(Color.rgb(0, 83, 155))
+
+    logo.setTypeface(
+        null,
+        Typeface.BOLD
+    )
+
+    logo.gravity =
+        Gravity.CENTER
+
+    logo.setTextColor(
+        Color.WHITE
+    )
+
+    logo.setBackgroundColor(
+        Color.rgb(
+            0,
+            83,
+            155
+        )
+    )
 
     logo.setOnClickListener {
         showMainMenu()
@@ -114,13 +269,29 @@ private fun addLogoBar() {
         )
     )
 
-    val title = TextView(this)
+    val title =
+        TextView(this)
 
-    title.text = "  İŞLETME TAKİP"
+    title.text =
+        "  İŞLETME TAKİP"
+
     title.textSize = 20f
-    title.setTypeface(null, Typeface.BOLD)
-    title.setTextColor(Color.rgb(0, 83, 155))
-    title.gravity = Gravity.CENTER_VERTICAL
+
+    title.setTypeface(
+        null,
+        Typeface.BOLD
+    )
+
+    title.setTextColor(
+        Color.rgb(
+            0,
+            83,
+            155
+        )
+    )
+
+    title.gravity =
+        Gravity.CENTER_VERTICAL
 
     bar.addView(
         title,
@@ -133,7 +304,8 @@ private fun addLogoBar() {
 
     root.addView(bar)
 
-    val space = Space(this)
+    val space =
+        Space(this)
 
     root.addView(
         space,
@@ -145,16 +317,34 @@ private fun addLogoBar() {
 }
 
 private fun showLoginScreen() {
+
     createRoot()
+
     addLogoBar()
 
-    val title = TextView(this)
+    val title =
+        TextView(this)
 
-    title.text = "Kullanıcı Girişi"
+    title.text =
+        "Kullanıcı Girişi"
+
     title.textSize = 24f
-    title.setTypeface(null, Typeface.BOLD)
-    title.gravity = Gravity.CENTER
-    title.setTextColor(Color.rgb(0, 83, 155))
+
+    title.setTypeface(
+        null,
+        Typeface.BOLD
+    )
+
+    title.gravity =
+        Gravity.CENTER
+
+    title.setTextColor(
+        Color.rgb(
+            0,
+            83,
+            155
+        )
+    )
 
     root.addView(
         title,
@@ -164,9 +354,12 @@ private fun showLoginScreen() {
         )
     )
 
-    val username = EditText(this)
+    val username =
+        EditText(this)
 
-    username.hint = "Kullanıcı Adı"
+    username.hint =
+        "Kullanıcı Adı"
+
     username.setSingleLine(true)
 
     root.addView(
@@ -179,14 +372,17 @@ private fun showLoginScreen() {
         }
     )
 
-    val password = EditText(this)
+    val password =
+        EditText(this)
 
-    password.hint = "Şifre"
+    password.hint =
+        "Şifre"
+
     password.setSingleLine(true)
 
     password.inputType =
         InputType.TYPE_CLASS_TEXT or
-        InputType.TYPE_TEXT_VARIATION_PASSWORD
+                InputType.TYPE_TEXT_VARIATION_PASSWORD
 
     root.addView(
         password,
@@ -198,9 +394,12 @@ private fun showLoginScreen() {
         }
     )
 
-    val login = Button(this)
+    val login =
+        Button(this)
 
-    login.text = "GİRİŞ YAP"
+    login.text =
+        "GİRİŞ YAP"
+
     login.textSize = 16f
 
     login.setOnClickListener {
@@ -219,16 +418,34 @@ private fun showLoginScreen() {
 }
 
 private fun showMainMenu() {
+
     createRoot()
+
     addLogoBar()
 
-    val title = TextView(this)
+    val title =
+        TextView(this)
 
-    title.text = "ANA MENÜ"
+    title.text =
+        "ANA MENÜ"
+
     title.textSize = 24f
-    title.setTypeface(null, Typeface.BOLD)
-    title.gravity = Gravity.CENTER
-    title.setTextColor(Color.rgb(0, 83, 155))
+
+    title.setTypeface(
+        null,
+        Typeface.BOLD
+    )
+
+    title.gravity =
+        Gravity.CENTER
+
+    title.setTextColor(
+        Color.rgb(
+            0,
+            83,
+            155
+        )
+    )
 
     root.addView(
         title,
@@ -238,11 +455,14 @@ private fun showMainMenu() {
         )
     )
 
-    val scroll = ScrollView(this)
+    val scroll =
+        ScrollView(this)
 
-    val menu = LinearLayout(this)
+    val menu =
+        LinearLayout(this)
 
-    menu.orientation = LinearLayout.VERTICAL
+    menu.orientation =
+        LinearLayout.VERTICAL
 
     menu.setPadding(
         0,
@@ -253,10 +473,14 @@ private fun showMainMenu() {
 
     for (name in sheetNames) {
 
-        val button = Button(this)
+        val button =
+            Button(this)
 
-        button.text = name
+        button.text =
+            name
+
         button.textSize = 15f
+
         button.setAllCaps(false)
 
         button.setOnClickListener {
@@ -286,24 +510,51 @@ private fun showMainMenu() {
     )
 }
 
-private fun showSheet(sheetName: String) {
+private fun showSheet(
+    sheetName: String
+) {
 
     createRoot()
+
     addLogoBar()
 
-    val titleBar = LinearLayout(this)
+    val titleBar =
+        LinearLayout(this)
 
-    titleBar.orientation = LinearLayout.VERTICAL
-    titleBar.setGravity(Gravity.CENTER)
-    titleBar.setBackgroundColor(Color.rgb(0, 83, 155))
+    titleBar.orientation =
+        LinearLayout.VERTICAL
 
-    val title = TextView(this)
+    titleBar.setGravity(
+        Gravity.CENTER
+    )
 
-    title.text = sheetName
+    titleBar.setBackgroundColor(
+        Color.rgb(
+            0,
+            83,
+            155
+        )
+    )
+
+    val title =
+        TextView(this)
+
+    title.text =
+        sheetName
+
     title.textSize = 20f
-    title.setTypeface(null, Typeface.BOLD)
-    title.setTextColor(Color.WHITE)
-    title.gravity = Gravity.CENTER
+
+    title.setTypeface(
+        null,
+        Typeface.BOLD
+    )
+
+    title.setTextColor(
+        Color.WHITE
+    )
+
+    title.gravity =
+        Gravity.CENTER
 
     titleBar.addView(
         title,
@@ -323,16 +574,32 @@ private fun showSheet(sheetName: String) {
 
     try {
 
-        val sheets = jsonData.getJSONObject("sheets")
-        val rows = sheets.getJSONArray(sheetName)
+        val sheets =
+            jsonData.getJSONObject(
+                "sheets"
+            )
 
-        val verticalScroll = ScrollView(this)
-        verticalScroll.setFillViewport(true)
+        val rows =
+            sheets.getJSONArray(
+                sheetName
+            )
 
-        val horizontalScroll = HorizontalScrollView(this)
-        horizontalScroll.setFillViewport(true)
+        val verticalScroll =
+            ScrollView(this)
 
-        val table = TableLayout(this)
+        verticalScroll.setFillViewport(
+            true
+        )
+
+        val horizontalScroll =
+            HorizontalScrollView(this)
+
+        horizontalScroll.setFillViewport(
+            true
+        )
+
+        val table =
+            TableLayout(this)
 
         table.setPadding(
             dp(4),
@@ -341,15 +608,19 @@ private fun showSheet(sheetName: String) {
             dp(20)
         )
 
-        for (i in 0 until rows.length()) {
+        for (
+            i in 0 until rows.length()
+        ) {
 
-            val row = rows.optJSONArray(i)
+            val row =
+                rows.optJSONArray(i)
 
             if (row == null) {
                 continue
             }
 
-            val tableRow = TableRow(this)
+            val tableRow =
+                TableRow(this)
 
             tableRow.setPadding(
                 0,
@@ -358,9 +629,12 @@ private fun showSheet(sheetName: String) {
                 dp(1)
             )
 
-            for (j in 0 until row.length()) {
+            for (
+                j in 0 until row.length()
+            ) {
 
-                val value = row.opt(j)
+                val value =
+                    row.opt(j)
 
                 val textValue =
                     if (
@@ -372,12 +646,18 @@ private fun showSheet(sheetName: String) {
                         value.toString()
                     }
 
-                val cell = TextView(this)
+                val cell =
+                    TextView(this)
 
-                cell.text = textValue
+                cell.text =
+                    textValue
 
                 cell.textSize =
-                    if (i == 0) 13f else 12f
+                    if (i == 0) {
+                        13f
+                    } else {
+                        12f
+                    }
 
                 cell.gravity =
                     Gravity.CENTER_VERTICAL
@@ -401,19 +681,31 @@ private fun showSheet(sheetName: String) {
                     )
 
                     cell.setBackgroundColor(
-                        Color.rgb(0, 83, 155)
+                        Color.rgb(
+                            0,
+                            83,
+                            155
+                        )
                     )
 
                 } else {
 
                     cell.setTextColor(
-                        Color.rgb(45, 45, 45)
+                        Color.rgb(
+                            45,
+                            45,
+                            45
+                        )
                     )
 
                     if (i % 2 == 0) {
 
                         cell.setBackgroundColor(
-                            Color.rgb(240, 246, 252)
+                            Color.rgb(
+                                240,
+                                246,
+                                252
+                            )
                         )
 
                     } else {
@@ -443,10 +735,14 @@ private fun showSheet(sheetName: String) {
                 )
             }
 
-            table.addView(tableRow)
+            table.addView(
+                tableRow
+            )
         }
 
-        horizontalScroll.addView(table)
+        horizontalScroll.addView(
+            table
+        )
 
         verticalScroll.addView(
             horizontalScroll
@@ -463,14 +759,17 @@ private fun showSheet(sheetName: String) {
 
     } catch (e: Exception) {
 
-        val error = TextView(this)
+        val error =
+            TextView(this)
 
         error.text =
             "Veriler gösterilemedi.\n\n" +
-            e.message
+                    e.message
 
         error.textSize = 16f
-        error.gravity = Gravity.CENTER
+
+        error.gravity =
+            Gravity.CENTER
 
         root.addView(
             error,
@@ -482,9 +781,12 @@ private fun showSheet(sheetName: String) {
         )
     }
 
-    val back = Button(this)
+    val back =
+        Button(this)
 
-    back.text = "ANA MENÜYE DÖN"
+    back.text =
+        "ANA MENÜYE DÖN"
+
     back.textSize = 15f
 
     back.setOnClickListener {
