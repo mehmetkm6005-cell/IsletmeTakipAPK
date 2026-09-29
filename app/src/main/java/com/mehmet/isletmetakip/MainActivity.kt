@@ -311,10 +311,10 @@ private fun showSheet(sheetName: String) {
         val rows = sheets.getJSONArray(sheetName)
 
         val verticalScroll = ScrollView(this)
-        verticalScroll.fillViewport = true
+        verticalScroll.setFillViewport(true)
 
         val horizontalScroll = HorizontalScrollView(this)
-        horizontalScroll.fillViewport = true
+        horizontalScroll.setFillViewport(true)
 
         val table = TableLayout(this)
 
