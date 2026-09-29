@@ -39,8 +39,8 @@ class MainActivity : Activity() {
         val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER_HORIZONTAL;setPadding(28,60,28,28)}
         box.addView(ImageView(this).apply{setImageResource(R.drawable.logo)},LinearLayout.LayoutParams(110,110))
         box.addView(TextView(this).apply{text="İŞLETME TAKİP";textSize=28f;gravity=Gravity.CENTER;setTextColor(blue);setPadding(0,12,0,28)})
-        box.addView(EditText(this).apply{hint="Kullanıcı adı";singleLine=true},LinearLayout.LayoutParams(-1,60))
-        box.addView(EditText(this).apply{hint="Şifre";singleLine=true;inputType=0x81},LinearLayout.LayoutParams(-1,60))
+        box.addView(EditText(this).apply{hint="Kullanıcı adı";setSingleLine(true)},LinearLayout.LayoutParams(-1,60))
+        box.addView(EditText(this).apply{hint="Şifre";setSingleLine(true);inputType=0x81},LinearLayout.LayoutParams(-1,60))
         box.addView(Button(this).apply{text="Giriş Yap";setOnClickListener{showMainMenu()}},LinearLayout.LayoutParams(-1,60))
         outer.addView(box)
         outer.addView(ImageButton(this).apply{setImageResource(R.drawable.logo);setBackgroundColor(Color.TRANSPARENT);contentDescription="Logo";setOnClickListener{showMainMenu()}},FrameLayout.LayoutParams(58,58,Gravity.TOP or Gravity.START))
