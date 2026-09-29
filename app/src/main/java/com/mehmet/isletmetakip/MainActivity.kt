@@ -510,51 +510,23 @@ private fun showMainMenu() {
     )
 }
 
-private fun showSheet(
-    sheetName: String
-) {
-
-    createRoot()
-
+private fun showSheet(sheetName: String) {
+createRoot()
     addLogoBar()
 
-    val titleBar =
-        LinearLayout(this)
+    val titleBar = LinearLayout(this)
 
-    titleBar.orientation =
-        LinearLayout.VERTICAL
+    titleBar.orientation = LinearLayout.VERTICAL
+    titleBar.setGravity(Gravity.CENTER)
+    titleBar.setBackgroundColor(Color.rgb(0, 83, 155))
 
-    titleBar.setGravity(
-        Gravity.CENTER
-    )
+    val title = TextView(this)
 
-    titleBar.setBackgroundColor(
-        Color.rgb(
-            0,
-            83,
-            155
-        )
-    )
-
-    val title =
-        TextView(this)
-
-    title.text =
-        sheetName
-
+    title.text = sheetName
     title.textSize = 20f
-
-    title.setTypeface(
-        null,
-        Typeface.BOLD
-    )
-
-    title.setTextColor(
-        Color.WHITE
-    )
-
-    title.gravity =
-        Gravity.CENTER
+    title.setTypeface(null, Typeface.BOLD)
+    title.setTextColor(Color.WHITE)
+    title.gravity = Gravity.CENTER
 
     titleBar.addView(
         title,
@@ -574,32 +546,60 @@ private fun showSheet(
 
     try {
 
-        val sheets =
-            jsonData.getJSONObject(
-                "sheets"
-            )
+        val sheets = jsonData.getJSONObject("sheets")
+        val sheetObject = sheets.getJSONObject(sheetName)
+        val cells = sheetObject.getJSONArray("cells")
 
-        val rows =
-            sheets.getJSONArray(
-                sheetName
-            )
+        val cellMap = HashMap<String, String>()
 
-        val verticalScroll =
-            ScrollView(this)
+        var maxRow = 0
+        var maxCol = 0
 
-        verticalScroll.setFillViewport(
-            true
-        )
+        for (i in 0 until cells.length()) {
 
-        val horizontalScroll =
-            HorizontalScrollView(this)
+            val cell = cells.getJSONObject(i)
 
-        horizontalScroll.setFillViewport(
-            true
-        )
+            val address = cell.optString("r")
+            val value = cell.optString("v", "")
 
-        val table =
-            TableLayout(this)
+            if (address.isEmpty()) {
+                continue
+            }
+
+            cellMap[address] = value
+
+            val match = Regex("^([A-Z]+)([0-9]+)$").find(address)
+
+            if (match != null) {
+
+                val colLetters = match.groupValues[1]
+                val rowNumber = match.groupValues[2].toInt()
+
+                var columnNumber = 0
+
+                for (ch in colLetters) {
+                    columnNumber =
+                        columnNumber * 26 +
+                        (ch - 'A' + 1)
+                }
+
+                if (rowNumber > maxRow) {
+                    maxRow = rowNumber
+                }
+
+                if (columnNumber > maxCol) {
+                    maxCol = columnNumber
+                }
+            }
+        }
+
+        val verticalScroll = ScrollView(this)
+        verticalScroll.setFillViewport(true)
+
+        val horizontalScroll = HorizontalScrollView(this)
+        horizontalScroll.setFillViewport(true)
+
+        val table = TableLayout(this)
 
         table.setPadding(
             dp(4),
@@ -608,19 +608,9 @@ private fun showSheet(
             dp(20)
         )
 
-        for (
-            i in 0 until rows.length()
-        ) {
+        for (rowNumber in 1..maxRow) {
 
-            val row =
-                rows.optJSONArray(i)
-
-            if (row == null) {
-                continue
-            }
-
-            val tableRow =
-                TableRow(this)
+            val tableRow = TableRow(this)
 
             tableRow.setPadding(
                 0,
@@ -629,35 +619,38 @@ private fun showSheet(
                 dp(1)
             )
 
-            for (
-                j in 0 until row.length()
-            ) {
+            for (columnNumber in 1..maxCol) {
 
-                val value =
-                    row.opt(j)
+                var columnLetters = ""
+                var number = columnNumber
+
+                while (number > 0) {
+
+                    val remainder =
+                        (number - 1) % 26
+
+                    columnLetters =
+                        ('A'.code + remainder)
+                            .toChar()
+                            .toString() +
+                        columnLetters
+
+                    number =
+                        (number - 1) / 26
+                }
+
+                val address =
+                    columnLetters + rowNumber
 
                 val textValue =
-                    if (
-                        value == null ||
-                        value == JSONObject.NULL
-                    ) {
-                        ""
-                    } else {
-                        value.toString()
-                    }
+                    cellMap[address] ?: ""
 
-                val cell =
-                    TextView(this)
+                val cell = TextView(this)
 
-                cell.text =
-                    textValue
+                cell.text = textValue
 
                 cell.textSize =
-                    if (i == 0) {
-                        13f
-                    } else {
-                        12f
-                    }
+                    if (rowNumber <= 3) 13f else 12f
 
                 cell.gravity =
                     Gravity.CENTER_VERTICAL
@@ -669,7 +662,7 @@ private fun showSheet(
                     dp(9)
                 )
 
-                if (i == 0) {
+                if (rowNumber <= 3) {
 
                     cell.setTypeface(
                         null,
@@ -681,31 +674,19 @@ private fun showSheet(
                     )
 
                     cell.setBackgroundColor(
-                        Color.rgb(
-                            0,
-                            83,
-                            155
-                        )
+                        Color.rgb(0, 83, 155)
                     )
 
                 } else {
 
                     cell.setTextColor(
-                        Color.rgb(
-                            45,
-                            45,
-                            45
-                        )
+                        Color.rgb(45, 45, 45)
                     )
 
-                    if (i % 2 == 0) {
+                    if (rowNumber % 2 == 0) {
 
                         cell.setBackgroundColor(
-                            Color.rgb(
-                                240,
-                                246,
-                                252
-                            )
+                            Color.rgb(240, 246, 252)
                         )
 
                     } else {
@@ -735,14 +716,10 @@ private fun showSheet(
                 )
             }
 
-            table.addView(
-                tableRow
-            )
+            table.addView(tableRow)
         }
 
-        horizontalScroll.addView(
-            table
-        )
+        horizontalScroll.addView(table)
 
         verticalScroll.addView(
             horizontalScroll
@@ -759,17 +736,20 @@ private fun showSheet(
 
     } catch (e: Exception) {
 
-        val error =
-            TextView(this)
+        val error = TextView(this)
 
         error.text =
             "Veriler gösterilemedi.\n\n" +
-                    e.message
+            e.toString()
 
         error.textSize = 16f
-
-        error.gravity =
-            Gravity.CENTER
+        error.gravity = Gravity.CENTER
+        error.setPadding(
+            dp(15),
+            dp(15),
+            dp(15),
+            dp(15)
+        )
 
         root.addView(
             error,
@@ -781,12 +761,9 @@ private fun showSheet(
         )
     }
 
-    val back =
-        Button(this)
+    val back = Button(this)
 
-    back.text =
-        "ANA MENÜYE DÖN"
-
+    back.text = "ANA MENÜYE DÖN"
     back.textSize = 15f
 
     back.setOnClickListener {
@@ -800,6 +777,4 @@ private fun showSheet(
             dp(55)
         )
     )
-}
-
 }
