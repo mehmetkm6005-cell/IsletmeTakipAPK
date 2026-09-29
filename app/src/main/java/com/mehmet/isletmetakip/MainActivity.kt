@@ -31,7 +31,6 @@ private fun dp(value: Int): Int {
 
 override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-
     loadData()
     showLoginScreen()
 }
@@ -57,7 +56,7 @@ private fun loadData() {
                 continue
             }
 
-            if (name.endsWith("-data", true)) {
+            if (name.endsWith("-data", ignoreCase = true)) {
                 continue
             }
 
@@ -253,6 +252,7 @@ private fun showMainMenu() {
     )
 
     for (name in sheetNames) {
+
         val button = Button(this)
 
         button.text = name
@@ -285,343 +285,219 @@ private fun showMainMenu() {
         )
     )
 }
+
 private fun showSheet(sheetName: String) {
 
-createRoot()
-addLogoBar()
+    createRoot()
+    addLogoBar()
 
-// =====================================================
-// SEKME BAŞLIĞI
-// =====================================================
+    val titleBar = LinearLayout(this)
 
-val titleBar = LinearLayout(this)
+    titleBar.orientation = LinearLayout.VERTICAL
+    titleBar.setGravity(Gravity.CENTER)
+    titleBar.setBackgroundColor(Color.rgb(0, 83, 155))
 
-titleBar.orientation = LinearLayout.VERTICAL
+    val title = TextView(this)
 
-titleBar.setBackgroundColor(
-    Color.rgb(0, 83, 155)
-)
+    title.text = sheetName
+    title.textSize = 20f
+    title.setTypeface(null, Typeface.BOLD)
+    title.setTextColor(Color.WHITE)
+    title.gravity = Gravity.CENTER
 
-titleBar.setPadding(
-    dp(12),
-    dp(8),
-    dp(12),
-    dp(8)
-)
-
-
-val title = TextView(this)
-
-title.text = sheetName
-
-title.textSize = 20f
-
-title.setTypeface(
-    null,
-    Typeface.BOLD
-)
-
-title.setTextColor(Color.WHITE)
-
-title.gravity = Gravity.CENTER
-
-
-titleBar.addView(
-    title,
-    LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT,
-        dp(45)
-    )
-)
-
-
-root.addView(
-    titleBar,
-    LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT,
-        dp(61)
-    )
-)
-
-
-// =====================================================
-// TABLO ALANI
-// =====================================================
-
-try {
-
-    val sheets =
-        jsonData.getJSONObject("sheets")
-
-    val rows =
-        sheets.getJSONArray(sheetName)
-
-
-    // DİKEY KAYDIRMA
-    val verticalScroll =
-        ScrollView(this)
-
-    verticalScroll.setFillViewport(true)
-
-
-    // YATAY KAYDIRMA
-    val horizontalScroll =
-        HorizontalScrollView(this)
-
-    horizontalScroll.setFillViewport(true)
-
-
-    // TABLO
-    val table =
-        TableLayout(this)
-
-    table.setPadding(
-        dp(5),
-        dp(5),
-        dp(5),
-        dp(15)
+    titleBar.addView(
+        title,
+        LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            dp(50)
+        )
     )
 
+    root.addView(
+        titleBar,
+        LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            dp(55)
+        )
+    )
 
-    // =================================================
-    // SATIRLARI OLUŞTUR
-    // =================================================
+    try {
 
-    for (i in 0 until rows.length()) {
+        val sheets = jsonData.getJSONObject("sheets")
+        val rows = sheets.getJSONArray(sheetName)
 
-        val row =
-            rows.optJSONArray(i)
+        val verticalScroll = ScrollView(this)
+        verticalScroll.setFillViewport(true)
 
-        if (row == null) {
-            continue
-        }
+        val horizontalScroll = HorizontalScrollView(this)
+        horizontalScroll.setFillViewport(true)
 
+        val table = TableLayout(this)
 
-        val tableRow =
-            TableRow(this)
+        table.setPadding(
+            dp(4),
+            dp(6),
+            dp(4),
+            dp(20)
+        )
 
+        for (i in 0 until rows.length()) {
 
-        // Satır yüksekliği
-        tableRow.minimumHeight =
-            dp(44)
+            val row = rows.optJSONArray(i)
 
-
-        // =================================================
-        // HÜCRELER
-        // =================================================
-
-        for (j in 0 until row.length()) {
-
-            val value =
-                row.opt(j)
-
-
-            val textValue =
-                if (
-                    value == null ||
-                    value == JSONObject.NULL
-                ) {
-                    ""
-                } else {
-                    value.toString()
-                }
-
-
-            val cell =
-                TextView(this)
-
-
-            cell.text =
-                textValue
-
-
-            cell.textSize =
-                if (i == 0) 13f else 12f
-
-
-            cell.gravity =
-                Gravity.CENTER_VERTICAL
-
-
-            cell.setPadding(
-                dp(10),
-                dp(8),
-                dp(10),
-                dp(8)
-            )
-
-
-            // =================================================
-            // BAŞLIK SATIRI
-            // =================================================
-
-            if (i == 0) {
-
-                cell.setTypeface(
-                    null,
-                    Typeface.BOLD
-                )
-
-                cell.setTextColor(
-                    Color.WHITE
-                )
-
-                cell.setBackgroundColor(
-                    Color.rgb(0, 83, 155)
-                )
-
+            if (row == null) {
+                continue
             }
 
-            // =================================================
-            // ALTERNATİF SATIR RENKLERİ
-            // =================================================
+            val tableRow = TableRow(this)
 
-            else {
-
-                cell.setTextColor(
-                    Color.rgb(45, 45, 45)
-                )
-
-
-                if (i % 2 == 0) {
-
-                    cell.setBackgroundColor(
-                        Color.rgb(
-                            242,
-                            247,
-                            252
-                        )
-                    )
-
-                } else {
-
-                    cell.setBackgroundColor(
-                        Color.WHITE
-                    )
-                }
-            }
-
-
-            // =================================================
-            // HÜCRE BOYUTU
-            // =================================================
-
-            val params =
-                TableRow.LayoutParams(
-                    dp(145),
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-
-
-            params.setMargins(
+            tableRow.setPadding(
+                0,
                 dp(1),
-                dp(1),
-                dp(1),
+                0,
                 dp(1)
             )
 
+            for (j in 0 until row.length()) {
 
-            tableRow.addView(
-                cell,
-                params
-            )
+                val value = row.opt(j)
+
+                val textValue =
+                    if (
+                        value == null ||
+                        value == JSONObject.NULL
+                    ) {
+                        ""
+                    } else {
+                        value.toString()
+                    }
+
+                val cell = TextView(this)
+
+                cell.text = textValue
+
+                cell.textSize =
+                    if (i == 0) 13f else 12f
+
+                cell.gravity =
+                    Gravity.CENTER_VERTICAL
+
+                cell.setPadding(
+                    dp(10),
+                    dp(9),
+                    dp(10),
+                    dp(9)
+                )
+
+                if (i == 0) {
+
+                    cell.setTypeface(
+                        null,
+                        Typeface.BOLD
+                    )
+
+                    cell.setTextColor(
+                        Color.WHITE
+                    )
+
+                    cell.setBackgroundColor(
+                        Color.rgb(0, 83, 155)
+                    )
+
+                } else {
+
+                    cell.setTextColor(
+                        Color.rgb(45, 45, 45)
+                    )
+
+                    if (i % 2 == 0) {
+
+                        cell.setBackgroundColor(
+                            Color.rgb(240, 246, 252)
+                        )
+
+                    } else {
+
+                        cell.setBackgroundColor(
+                            Color.WHITE
+                        )
+                    }
+                }
+
+                val params =
+                    TableRow.LayoutParams(
+                        dp(145),
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    )
+
+                params.setMargins(
+                    dp(1),
+                    dp(1),
+                    dp(1),
+                    dp(1)
+                )
+
+                tableRow.addView(
+                    cell,
+                    params
+                )
+            }
+
+            table.addView(tableRow)
         }
 
+        horizontalScroll.addView(table)
 
-        // =================================================
-        // SATIRI TABLOYA EKLE
-        // =================================================
+        verticalScroll.addView(
+            horizontalScroll
+        )
 
-        table.addView(
-            tableRow
+        root.addView(
+            verticalScroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        )
+
+    } catch (e: Exception) {
+
+        val error = TextView(this)
+
+        error.text =
+            "Veriler gösterilemedi.\n\n" +
+            e.message
+
+        error.textSize = 16f
+        error.gravity = Gravity.CENTER
+
+        root.addView(
+            error,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
         )
     }
 
+    val back = Button(this)
 
-    // =====================================================
-    // TABLOYU SCROLL ALANLARINA EKLE
-    // =====================================================
+    back.text = "ANA MENÜYE DÖN"
+    back.textSize = 15f
 
-    horizontalScroll.addView(
-        table
-    )
-
-
-    verticalScroll.addView(
-        horizontalScroll
-    )
-
+    back.setOnClickListener {
+        showMainMenu()
+    }
 
     root.addView(
-        verticalScroll,
+        back,
         LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
-            0,
-            1f
-        )
-    )
-
-
-} catch (e: Exception) {
-
-    val error =
-        TextView(this)
-
-    error.text =
-        "Veriler gösterilemedi.\n\n" +
-        e.message
-
-    error.textSize =
-        16f
-
-    error.gravity =
-        Gravity.CENTER
-
-    error.setPadding(
-        dp(20),
-        dp(20),
-        dp(20),
-        dp(20)
-    )
-
-
-    root.addView(
-        error,
-        LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            0,
-            1f
+            dp(55)
         )
     )
 }
 
-
-// =====================================================
-// ANA MENÜ BUTONU
-// =====================================================
-
-val back =
-    Button(this)
-
-back.text =
-    "ANA MENÜYE DÖN"
-
-back.textSize =
-    15f
-
-back.setOnClickListener {
-
-    showMainMenu()
 }
-
-
-root.addView(
-    back,
-    LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT,
-        dp(55)
-    )
-)
-
-}
-
