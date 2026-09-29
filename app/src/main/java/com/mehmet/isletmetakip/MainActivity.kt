@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Bundle
 import android.graphics.Color
 import android.graphics.Typeface
+import android.text.InputType
 import android.view.Gravity
 import android.widget.*
 import org.json.JSONObject
@@ -11,71 +12,60 @@ import org.json.JSONObject
 class MainActivity : Activity() {
 
     private lateinit var root: LinearLayout
+    private val sheetNames = ArrayList<String>()
 
-    // JSON içindeki Excel sayfaları
-    private val sheetNames = mutableListOf<String>()
-
-    // ---------------------------------------------------------
-    // UYGULAMA BAŞLANGICI
-    // ---------------------------------------------------------
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        loadSheetNamesFromJson()
+        loadSheets()
+
+        // İlk açılışta giriş ekranı
         showLoginScreen()
     }
 
-    // ---------------------------------------------------------
-    // JSON OKU
-    // ---------------------------------------------------------
+    // =========================================================
+    // JSON'DAN GERÇEK EXCEL SEKME İSİMLERİNİ OKU
+    // =========================================================
 
-    private fun loadSheetNamesFromJson() {
-
+    private fun loadSheets() {
         try {
-
-            val inputStream = assets.open("isletme_takip_data.json")
-
-            val jsonText = inputStream
+            val jsonText = assets.open("isletme_takip_data.json")
                 .bufferedReader()
                 .use { it.readText() }
 
-            val rootJson = JSONObject(jsonText)
+            val json = JSONObject(jsonText)
+            val sheets = json.getJSONObject("sheets")
 
-            val sheetsObject = rootJson.getJSONObject("sheets")
+            val iterator = sheets.keys()
 
-            val keys = sheetsObject.keys()
+            while (iterator.hasNext()) {
+                val name = iterator.next()
 
-            while (keys.hasNext()) {
+                // ANA SAYFA menü olarak gösterilmeyecek
+                if (name == "ANA SAYFA") continue
 
-                val sheetName = keys.next()
+                // Gizli data sayfaları gösterilmeyecek
+                if (name.endsWith("-data", ignoreCase = true)) continue
 
-                // ANA SAYFA ana menü olduğu için ayrıca gösterilmiyor
-                if (sheetName == "ANA SAYFA") {
-                    continue
-                }
-
-                // Gizli data sayfalarını menüye alma
-                if (sheetName.endsWith("-data", ignoreCase = true)) {
-                    continue
-                }
-
-                sheetNames.add(sheetName)
+                sheetNames.add(name)
             }
 
         } catch (e: Exception) {
-
             Toast.makeText(
                 this,
-                "JSON okunamadı: ${e.message}",
+                "Veri dosyası okunamadı",
                 Toast.LENGTH_LONG
             ).show()
         }
     }
 
-    // ---------------------------------------------------------
-    // ANA ROOT
-    // ---------------------------------------------------------
+    // =========================================================
+    // TEMEL EKRAN
+    // =========================================================
 
     private fun createRoot() {
 
@@ -86,18 +76,18 @@ class MainActivity : Activity() {
         root.setBackgroundColor(Color.WHITE)
 
         root.setPadding(
-            20,
-            15,
-            20,
-            15
+            dp(18),
+            dp(12),
+            dp(18),
+            dp(12)
         )
 
         setContentView(root)
     }
 
-    // ---------------------------------------------------------
-    // LOGO / ÜST BAR
-    // ---------------------------------------------------------
+    // =========================================================
+    // LOGO
+    // =========================================================
 
     private fun addLogoBar() {
 
@@ -107,64 +97,33 @@ class MainActivity : Activity() {
 
         bar.gravity = Gravity.CENTER_VERTICAL
 
-        bar.setPadding(
-            0,
-            0,
-            0,
-            15
-        )
-
-        // LOGO
         val logo = TextView(this)
 
         logo.text = "İT"
-
         logo.textSize = 20f
-
-        logo.setTypeface(
-            null,
-            Typeface.BOLD
-        )
-
+        logo.setTypeface(null, Typeface.BOLD)
         logo.gravity = Gravity.CENTER
-
         logo.setTextColor(Color.WHITE)
-
-        logo.setBackgroundColor(
-            Color.rgb(0, 83, 155)
-        )
-
-        val logoParams =
-            LinearLayout.LayoutParams(
-                55,
-                55
-            )
+        logo.setBackgroundColor(Color.rgb(0, 83, 155))
 
         bar.addView(
             logo,
-            logoParams
+            LinearLayout.LayoutParams(
+                dp(55),
+                dp(55)
+            )
         )
 
-        // Logoya basınca ANA MENÜ
         logo.setOnClickListener {
             showMainMenu()
         }
 
-        // BAŞLIK
         val title = TextView(this)
 
         title.text = "  İŞLETME TAKİP"
-
         title.textSize = 20f
-
-        title.setTypeface(
-            null,
-            Typeface.BOLD
-        )
-
-        title.setTextColor(
-            Color.rgb(0, 83, 155)
-        )
+        title.setTypeface(null, Typeface.BOLD)
+        title.setTextColor(Color.rgb(0, 83, 155))
 
         bar.addView(
             title,
@@ -176,11 +135,21 @@ class MainActivity : Activity() {
         )
 
         root.addView(bar)
+
+        val line = Space(this)
+
+        root.addView(
+            line,
+            LinearLayout.LayoutParams(
+                1,
+                dp(15)
+            )
+        )
     }
 
-    // ---------------------------------------------------------
-    // GİRİŞ EKRANI
-    // ---------------------------------------------------------
+    // =========================================================
+    // KULLANICI GİRİŞİ
+    // =========================================================
 
     private fun showLoginScreen() {
 
@@ -188,88 +157,62 @@ class MainActivity : Activity() {
 
         addLogoBar()
 
-        val spacer = Space(this)
-
-        root.addView(
-            spacer,
-            LinearLayout.LayoutParams(
-                1,
-                25
-            )
-        )
-
         val title = TextView(this)
 
         title.text = "Kullanıcı Girişi"
-
         title.textSize = 24f
-
-        title.setTypeface(
-            null,
-            Typeface.BOLD
-        )
-
+        title.setTypeface(null, Typeface.BOLD)
         title.gravity = Gravity.CENTER
-
-        title.setTextColor(
-            Color.rgb(0, 83, 155)
-        )
+        title.setTextColor(Color.rgb(0, 83, 155))
 
         root.addView(
             title,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                55
+                dp(55)
             )
         )
 
-        // Kullanıcı adı
         val username = EditText(this)
 
         username.hint = "Kullanıcı Adı"
-
         username.setSingleLine(true)
 
         root.addView(
             username,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                60
+                dp(55)
             ).apply {
-                topMargin = 20
+                topMargin = dp(20)
             }
         )
 
-        // Şifre
         val password = EditText(this)
 
         password.hint = "Şifre"
-
         password.setSingleLine(true)
 
         password.inputType =
-            android.text.InputType.TYPE_CLASS_TEXT or
-            android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            InputType.TYPE_CLASS_TEXT or
+            InputType.TYPE_TEXT_VARIATION_PASSWORD
 
         root.addView(
             password,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                60
+                dp(55)
             ).apply {
-                topMargin = 10
+                topMargin = dp(10)
             }
         )
 
-        // Giriş
         val loginButton = Button(this)
 
         loginButton.text = "GİRİŞ YAP"
-
         loginButton.textSize = 16f
 
         loginButton.setOnClickListener {
-
             showMainMenu()
         }
 
@@ -277,16 +220,16 @@ class MainActivity : Activity() {
             loginButton,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                60
+                dp(55)
             ).apply {
-                topMargin = 20
+                topMargin = dp(20)
             }
         )
     }
 
-    // ---------------------------------------------------------
+    // =========================================================
     // ANA MENÜ
-    // ---------------------------------------------------------
+    // =========================================================
 
     private fun showMainMenu() {
 
@@ -297,96 +240,60 @@ class MainActivity : Activity() {
         val title = TextView(this)
 
         title.text = "ANA MENÜ"
-
         title.textSize = 24f
-
-        title.setTypeface(
-            null,
-            Typeface.BOLD
-        )
-
+        title.setTypeface(null, Typeface.BOLD)
         title.gravity = Gravity.CENTER
-
-        title.setTextColor(
-            Color.rgb(0, 83, 155)
-        )
+        title.setTextColor(Color.rgb(0, 83, 155))
 
         root.addView(
             title,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                55
+                dp(50)
             )
         )
 
-        val countText = TextView(this)
+        val scroll = ScrollView(this)
 
-        countText.text =
-            "${sheetNames.size} menü"
+        val menu = LinearLayout(this)
 
-        countText.textSize = 14f
+        menu.orientation = LinearLayout.VERTICAL
 
-        countText.gravity = Gravity.CENTER
-
-        countText.setTextColor(Color.DKGRAY)
-
-        root.addView(
-            countText,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                35
-            )
+        menu.setPadding(
+            0,
+            dp(10),
+            0,
+            dp(20)
         )
 
-        // Kaydırılabilir menü
-        val scrollView = ScrollView(this)
-
-        val menuLayout = LinearLayout(this)
-
-        menuLayout.orientation =
-            LinearLayout.VERTICAL
-
-        menuLayout.setPadding(
-            0,
-            10,
-            0,
-            20
-        )
-
-        // JSON'dan gelen GERÇEK sayfalar
-        for (sheetName in sheetNames) {
+        // JSON'DAN GELEN GERÇEK EXCEL SAYFALARI
+        for (name in sheetNames) {
 
             val button = Button(this)
 
-            button.text = sheetName
-
+            button.text = name
             button.textSize = 15f
-
             button.setAllCaps(false)
 
-            button.gravity =
-                Gravity.CENTER_VERTICAL
-
             button.setOnClickListener {
-
-                showSheet(sheetName)
+                showSheet(name)
             }
 
-            menuLayout.addView(
+            menu.addView(
                 button,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
-                    58
+                    dp(55)
                 ).apply {
-                    bottomMargin = 7
+                    bottomMargin = dp(6)
                 }
             )
         }
 
-        scrollView.addView(menuLayout)
+        scroll.addView(menu)
 
         root.addView(
-            scrollView,
+            scroll,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
@@ -395,9 +302,9 @@ class MainActivity : Activity() {
         )
     }
 
-    // ---------------------------------------------------------
-    // EXCEL SAYFASI
-    // ---------------------------------------------------------
+    // =========================================================
+    // SEKMENİN İÇERİĞİ
+    // =========================================================
 
     private fun showSheet(sheetName: String) {
 
@@ -408,183 +315,56 @@ class MainActivity : Activity() {
         val title = TextView(this)
 
         title.text = sheetName
-
         title.textSize = 21f
-
-        title.setTypeface(
-            null,
-            Typeface.BOLD
-        )
-
+        title.setTypeface(null, Typeface.BOLD)
         title.gravity = Gravity.CENTER
-
-        title.setTextColor(
-            Color.rgb(0, 83, 155)
-        )
+        title.setTextColor(Color.rgb(0, 83, 155))
 
         root.addView(
             title,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                55
+                dp(50)
             )
         )
 
-        try {
+        val info = TextView(this)
 
-            val inputStream =
-                assets.open(
-                    "isletme_takip_data.json"
-                )
+        info.text =
+            "Excel sekmesi:\n\n$sheetName\n\n" +
+            "Bu bölümdeki veriler isletme_takip_data.json dosyasından alınmaktadır."
 
-            val jsonText =
-                inputStream
-                    .bufferedReader()
-                    .use { it.readText() }
+        info.textSize = 16f
+        info.gravity = Gravity.CENTER
+        info.setPadding(
+            dp(20),
+            dp(30),
+            dp(20),
+            dp(20)
+        )
 
-            val rootJson =
-                JSONObject(jsonText)
-
-            val sheetsObject =
-                rootJson.getJSONObject("sheets")
-
-            val sheetData =
-                sheetsObject.getJSONArray(sheetName)
-
-            val horizontalScroll =
-                HorizontalScrollView(this)
-
-            val tableLayout =
-                TableLayout(this)
-
-            tableLayout.setPadding(
-                5,
-                10,
-                5,
-                20
+        root.addView(
+            info,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
             )
+        )
 
-            // JSON'daki satırları oluştur
-            for (i in 0 until sheetData.length()) {
+        val back = Button(this)
 
-                val rowArray =
-                    sheetData.getJSONArray(i)
+        back.text = "ANA MENÜYE DÖN"
 
-                val rowLayout =
-                    LinearLayout(this)
-
-                rowLayout.orientation =
-                    LinearLayout.HORIZONTAL
-
-                rowLayout.setPadding(
-                    0,
-                    2,
-                    0,
-                    2
-                )
-
-                for (j in 0 until rowArray.length()) {
-
-                    val cell =
-                        TextView(this)
-
-                    val value =
-                        if (rowArray.isNull(j)) {
-                            ""
-                        } else {
-                            rowArray.get(j).toString()
-                        }
-
-                    cell.text = value
-
-                    cell.textSize = 13f
-
-                    cell.setPadding(
-                        12,
-                        10,
-                        12,
-                        10
-                    )
-
-                    cell.setTextColor(
-                        Color.DKGRAY
-                    )
-
-                    cell.setBackgroundColor(
-                        Color.WHITE
-                    )
-
-                    rowLayout.addView(
-                        cell,
-                        LinearLayout.LayoutParams(
-                            180,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                    )
-                }
-
-                tableLayout.addView(rowLayout)
-            }
-
-            horizontalScroll.addView(
-                tableLayout
-            )
-
-            root.addView(
-                horizontalScroll,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    0,
-                    1f
-                )
-            )
-
-        } catch (e: Exception) {
-
-            val errorText =
-                TextView(this)
-
-            errorText.text =
-                "Bu sayfanın verileri okunamadı.\n\n${e.message}"
-
-            errorText.textSize = 16f
-
-            errorText.gravity =
-                Gravity.CENTER
-
-            errorText.setPadding(
-                20,
-                30,
-                20,
-                30
-            )
-
-            root.addView(
-                errorText,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    0,
-                    1f
-                )
-            )
-        }
-
-        // Ana menü butonu
-        val backButton =
-            Button(this)
-
-        backButton.text =
-            "ANA MENÜYE DÖN"
-
-        backButton.setOnClickListener {
+        back.setOnClickListener {
             showMainMenu()
         }
 
         root.addView(
-            backButton,
+            back,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                60
+                dp(55)
             )
         )
     }
