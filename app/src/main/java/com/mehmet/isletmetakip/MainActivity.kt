@@ -1,235 +1,283 @@
 package com.mehmet.isletmetakip
 
 import android.app.Activity
+import android.os.Bundle
 import android.graphics.Color
 import android.graphics.Typeface
-import android.os.Bundle
-import android.text.InputType
 import android.view.Gravity
+import android.view.View
 import android.widget.*
-import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
 
 class MainActivity : Activity() {
-    private val blue = Color.rgb(21, 101, 192)
-    private val dark = Color.rgb(35, 35, 35)
-    private lateinit var content: LinearLayout
-    private var excelData = JSONObject()
 
-    private val screens = listOf(
-        "İHBARLAR", "HASARLAR", "ARAÇLAR", "PERSONELLER", "ABONE SAYISI", "ŞEBEKE BİLGİSİ",
-        "RMS-A GENEL BİLGİLER", "RMS-A SAYAÇ", "RMS-A GAZ ÇEKİŞLERİ", "BÖLGE REGÜLATÖRLERİ",
-        "MÜŞTERİ İSTASYONLARI", "RMS-A PEAK ÇEKİŞLERİ", "BR PEAK ÇEKİŞLERİ", "STOK GAZ MİKTARLARI",
-        "ACİL EKİP İHBAR CİHAZLARI", "ENDÜSTRİYEL SAYAÇLAR", "LNG-CNG", "AMR ŞİFRELERİ", "CİHAZLAR",
-        "ACİL-RMS-OFİS TELEFONLARI", "ACİL EKİP İHBAR CİHAZI HASARLAR", "HAT SONU BASINÇ ÖLÇÜM ORTALAMAS",
-        "HAT SONU KOKU ÖLÇÜM ORTALAMASI", "İŞLETME SAPMA SÜRELERİ", "KAÇAK TARAMA FAALİYETLERİ",
-        "DEPLASE İŞ EMİRLERİ", "REGÜLATÖR İŞ EMİRLERİ", "HAT İPTALLERİ", "YAKICI CİHAZ DEĞİŞİMLERİ",
-        "ARIZA İŞ EMİRLERİ", "İZİN TAKİP", "FAZLA MESAİ TAKİP", "PATLAMA-YANGIN-ZEHİNLENME",
-        "Mİ-RMS-B ÖZET", "Mİ-RMS-RS-C ÖZET"
-    )
+    private lateinit var root: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        loadExcelData()
-        showLogin()
+
+        showLoginScreen()
     }
 
-    private fun loadExcelData() {
-        try {
-            assets.open("isletme_takip_data.json").use { input ->
-                val text = BufferedReader(InputStreamReader(input, Charsets.UTF_8)).readText()
-                val root = JSONObject(text)
-                excelData = root.optJSONObject("sheets") ?: root
+    private fun createRoot(): LinearLayout {
+        root = LinearLayout(this)
+        root.orientation = LinearLayout.VERTICAL
+        root.setBackgroundColor(Color.WHITE)
+
+        return root
+    }
+
+    private fun showLoginScreen() {
+        root = createRoot()
+
+        val header = TextView(this)
+        header.text = "İŞLETME TAKİP"
+        header.textSize = 24f
+        header.setTypeface(null, Typeface.BOLD)
+        header.gravity = Gravity.CENTER
+        header.setPadding(20, 40, 20, 40)
+
+        root.addView(
+            header,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        val title = TextView(this)
+        title.text = "Kullanıcı Girişi"
+        title.textSize = 22f
+        title.setTypeface(null, Typeface.BOLD)
+        title.gravity = Gravity.CENTER
+        title.setPadding(20, 30, 20, 30)
+
+        root.addView(title)
+
+        val username = EditText(this)
+        username.hint = "Kullanıcı Adı"
+        username.setSingleLine(true)
+        username.setPadding(30, 20, 30, 20)
+
+        root.addView(
+            username,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(40, 20, 40, 10)
             }
-        } catch (_: Exception) {
-            excelData = JSONObject()
-        }
-    }
+        )
 
-    private fun header(title: String): LinearLayout {
-        val bar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(blue)
-        }
-        val logo = ImageButton(this).apply {
-            setImageResource(R.drawable.logo)
-            setBackgroundColor(Color.TRANSPARENT)
-            contentDescription = "Ana Menü"
-            setOnClickListener { showMainMenu() }
-        }
-        bar.addView(logo, LinearLayout.LayoutParams(60, 60))
-        val tv = TextView(this).apply {
-            text = title
-            textSize = 19f
-            setTextColor(Color.WHITE)
-            setTypeface(null, Typeface.BOLD)
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(10, 0, 10, 0)
-        }
-        bar.addView(tv, LinearLayout.LayoutParams(0, 60, 1f))
-        return bar
-    }
+        val password = EditText(this)
+        password.hint = "Şifre"
+        password.setSingleLine(true)
+        password.inputType =
+            android.text.InputType.TYPE_CLASS_TEXT or
+                    android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        password.setPadding(30, 20, 30, 20)
 
-    private fun page(title: String) {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
-        }
-        root.addView(header(title), LinearLayout.LayoutParams(-1, 60))
-        content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(16, 16, 16, 24)
-        }
-        val scroll = ScrollView(this).apply { addView(content) }
-        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        setContentView(root)
-    }
+        root.addView(
+            password,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(40, 10, 40, 20)
+            }
+        )
 
-    private fun showLogin() {
-        val root = FrameLayout(this).apply { setBackgroundColor(Color.WHITE) }
-        val top = ImageButton(this).apply {
-            setImageResource(R.drawable.logo)
-            setBackgroundColor(Color.TRANSPARENT)
-            contentDescription = "Logo"
-        }
-        root.addView(top, FrameLayout.LayoutParams(60, 60, Gravity.TOP or Gravity.START))
+        val loginButton = Button(this)
+        loginButton.text = "GİRİŞ YAP"
+        loginButton.textSize = 16f
 
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(28, 72, 28, 28)
+        loginButton.setOnClickListener {
+            showMainMenu()
         }
-        val logo = ImageView(this).apply { setImageResource(R.drawable.logo) }
-        box.addView(logo, LinearLayout.LayoutParams(120, 120))
-        val title = TextView(this).apply {
-            text = "İŞLETME TAKİP"
-            textSize = 28f
-            setTextColor(blue)
-            setTypeface(null, Typeface.BOLD)
-            gravity = Gravity.CENTER
-            setPadding(0, 12, 0, 28)
-        }
-        box.addView(title, LinearLayout.LayoutParams(-1, -2))
-        val user = EditText(this).apply {
-            hint = "Kullanıcı adı"
-            setSingleLine(true)
-            textSize = 16f
-        }
-        box.addView(user, LinearLayout.LayoutParams(-1, 60).apply { setMargins(0, 0, 0, 12) })
-        val pass = EditText(this).apply {
-            hint = "Şifre"
-            setSingleLine(true)
-            textSize = 16f
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        box.addView(pass, LinearLayout.LayoutParams(-1, 60).apply { setMargins(0, 0, 0, 18) })
-        val login = Button(this).apply {
-            text = "GİRİŞ YAP"
-            textSize = 16f
-            setOnClickListener { showMainMenu() }
-        }
-        box.addView(login, LinearLayout.LayoutParams(-1, 60))
-        root.addView(box, FrameLayout.LayoutParams(-1, -1))
-        root.bringChildToFront(top)
+
+        root.addView(
+            loginButton,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(40, 20, 40, 20)
+            }
+        )
+
         setContentView(root)
     }
 
     private fun showMainMenu() {
-        page("Ana Menü")
-        content.addView(TextView(this).apply {
-            text = "İŞLETME TAKİP"
-            textSize = 26f
-            setTextColor(blue)
-            setTypeface(null, Typeface.BOLD)
-            setPadding(0, 0, 0, 6)
-        })
-        content.addView(TextView(this).apply {
-            text = "Excel ekranları"
-            textSize = 15f
-            setTextColor(Color.DKGRAY)
-            setPadding(0, 0, 0, 14)
-        })
-        screens.forEach { name ->
-            val row = TextView(this).apply {
-                text = name
-                textSize = 16f
-                setTextColor(dark)
-                gravity = Gravity.CENTER_VERTICAL
-                setTypeface(null, Typeface.BOLD)
-                setPadding(18, 0, 12, 0)
-                setBackgroundColor(Color.rgb(245, 247, 250))
-                setOnClickListener { showScreen(name) }
-            }
-            content.addView(row, LinearLayout.LayoutParams(-1, 58).apply { setMargins(0, 0, 0, 8) })
-        }
-    }
+        root = createRoot()
 
-    private fun showScreen(name: String) {
-        page(name)
-        content.addView(TextView(this).apply {
-            text = name
-            textSize = 22f
-            setTextColor(blue)
-            setTypeface(null, Typeface.BOLD)
-            setPadding(0, 0, 0, 8)
-        })
-        val sheet = excelData.optJSONObject(name)
-        val rows = sheet?.optJSONArray("rows")
-        if (rows == null || rows.length() == 0) {
-            content.addView(TextView(this).apply {
-                text = "Veri bulunamadı."
-                textSize = 16f
-                setTextColor(Color.DKGRAY)
-            })
-            return
+        val header = LinearLayout(this)
+        header.orientation = LinearLayout.HORIZONTAL
+        header.gravity = Gravity.CENTER_VERTICAL
+        header.setPadding(20, 25, 20, 25)
+
+        val logo = TextView(this)
+        logo.text = "İŞLETME\nTAKİP"
+        logo.textSize = 18f
+        logo.setTypeface(null, Typeface.BOLD)
+        logo.gravity = Gravity.CENTER
+
+        logo.setOnClickListener {
+            showMainMenu()
         }
-        content.addView(TextView(this).apply {
-            text = "Toplam kayıt: ${rows.length()}"
-            textSize = 15f
-            setTextColor(Color.DKGRAY)
-            setTypeface(null, Typeface.BOLD)
-            setPadding(0, 0, 0, 10)
-        })
-        val tableScroll = HorizontalScrollView(this)
-        val table = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val count = minOf(rows.length(), 30)
-        for (r in 0 until count) {
-            val arr = rows.optJSONArray(r) ?: continue
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            for (c in 0 until arr.length()) {
-                val cell = TextView(this).apply {
-                    text = arr.optString(c, "")
-                    textSize = 13f
-                    setPadding(10, 8, 10, 8)
-                    gravity = Gravity.CENTER_VERTICAL
-                    if (r == 0) {
-                        setBackgroundColor(blue)
-                        setTextColor(Color.WHITE)
-                        setTypeface(null, Typeface.BOLD)
-                    } else {
-                        setTextColor(dark)
-                        setBackgroundColor(if (r % 2 == 0) Color.WHITE else Color.rgb(245, 245, 245))
-                    }
+
+        header.addView(
+            logo,
+            LinearLayout.LayoutParams(
+                120,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        val title = TextView(this)
+        title.text = "ANA MENÜ"
+        title.textSize = 22f
+        title.setTypeface(null, Typeface.BOLD)
+        title.gravity = Gravity.CENTER
+
+        header.addView(
+            title,
+            LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        )
+
+        root.addView(header)
+
+        val scrollView = ScrollView(this)
+
+        val menu = LinearLayout(this)
+        menu.orientation = LinearLayout.VERTICAL
+        menu.setPadding(25, 15, 25, 30)
+
+        val menuItems = arrayOf(
+            "Abone Bilgileri",
+            "İş Emirleri",
+            "Bildirimler",
+            "Arıza İşlemleri",
+            "Hat İptal İşlemleri",
+            "Teknik Tamamlama",
+            "Kutu Bekleyen Aboneler",
+            "Döküman Yükleme",
+            "Sayaç İşlemleri",
+            "Malzeme Bilgileri",
+            "Saha İşlemleri",
+            "Raporlar"
+        )
+
+        for (item in menuItems) {
+            val button = Button(this)
+            button.text = item
+            button.textSize = 16f
+
+            button.setOnClickListener {
+                showPage(item)
+            }
+
+            menu.addView(
+                button,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 8, 0, 8)
                 }
-                row.addView(cell, LinearLayout.LayoutParams(180, 52))
-            }
-            table.addView(row, LinearLayout.LayoutParams(-2, 52))
+            )
         }
-        tableScroll.addView(table)
-        content.addView(tableScroll, LinearLayout.LayoutParams(-1, -2))
-        if (rows.length() > 30) {
-            content.addView(TextView(this).apply {
-                text = "İlk 30 kayıt gösteriliyor."
-                textSize = 14f
-                setTextColor(Color.DKGRAY)
-                setPadding(0, 10, 0, 0)
-            })
-        }
+
+        scrollView.addView(menu)
+        root.addView(
+            scrollView,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        )
+
+        setContentView(root)
     }
 
-    override fun onBackPressed() {
-        showMainMenu()
+    private fun showPage(pageName: String) {
+        root = createRoot()
+
+        val header = LinearLayout(this)
+        header.orientation = LinearLayout.HORIZONTAL
+        header.gravity = Gravity.CENTER_VERTICAL
+        header.setPadding(15, 20, 15, 20)
+
+        val logo = TextView(this)
+        logo.text = "İŞLETME\nTAKİP"
+        logo.textSize = 16f
+        logo.setTypeface(null, Typeface.BOLD)
+        logo.gravity = Gravity.CENTER
+
+        logo.setOnClickListener {
+            showMainMenu()
+        }
+
+        header.addView(
+            logo,
+            LinearLayout.LayoutParams(
+                110,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        val title = TextView(this)
+        title.text = pageName
+        title.textSize = 20f
+        title.setTypeface(null, Typeface.BOLD)
+        title.gravity = Gravity.CENTER
+
+        header.addView(
+            title,
+            LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        )
+
+        root.addView(header)
+
+        val content = TextView(this)
+        content.text = "\n$pageName\n\nBu ekranın Excel verileri burada gösterilecek."
+        content.textSize = 18f
+        content.gravity = Gravity.CENTER
+        content.setPadding(20, 50, 20, 50)
+
+        root.addView(
+            content,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        )
+
+        val backButton = Button(this)
+        backButton.text = "ANA MENÜ"
+        backButton.setOnClickListener {
+            showMainMenu()
+        }
+
+        root.addView(
+            backButton,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(30, 10, 30, 20)
+            }
+        )
+
+        setContentView(root)
     }
 }
