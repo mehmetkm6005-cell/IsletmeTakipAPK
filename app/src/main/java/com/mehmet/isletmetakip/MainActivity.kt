@@ -620,6 +620,17 @@ createRoot()
             )
 
             for (columnNumber in 1..maxCol) {
+               if (!(1..maxRow).any { row ->
+                   var letters = ""
+                   var number = columnNumber
+                   while (number > 0) {
+                        val remainder = (number - 1) % 26
+                        letters = ('A'.code + remainder).toChar().toString() + letters
+                        number = (number - 1) / 26
+                 }
+                 val value = cellMap[letters + row] ?: ""
+                 value.isNotBlank()
+              }) continue
 
                 var columnLetters = ""
                 var number = columnNumber
