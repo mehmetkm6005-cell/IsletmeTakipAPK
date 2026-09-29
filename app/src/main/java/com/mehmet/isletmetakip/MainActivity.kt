@@ -662,7 +662,7 @@ createRoot()
                     dp(9)
                 )
 
-                if (rowNumber <= 3) {
+                if (rowNumber <= 3 && textValue.isNotBlank()) {
 
                     cell.setTypeface(
                         null,
