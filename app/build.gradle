@@ -1,0 +1,5 @@
+plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
+
+android { namespace 'com.mehmet.isletmetakip'; compileSdk 36
+    defaultConfig { applicationId 'com.mehmet.isletmetakip'; minSdk 24; targetSdk 36; versionCode 12; versionName '1.2' }
+}
