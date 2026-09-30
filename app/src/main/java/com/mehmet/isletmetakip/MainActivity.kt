@@ -22,7 +22,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
 
-class MainActivity : Activity {
+class MainActivity : Activity() {
 
     private lateinit var root: LinearLayout
 
