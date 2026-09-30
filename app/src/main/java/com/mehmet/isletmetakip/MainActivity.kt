@@ -14,6 +14,7 @@ import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Space
 import android.widget.TableLayout
 import android.widget.TableRow
 import android.widget.TextView
@@ -25,19 +26,24 @@ import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
 
-    private val jsonUrl =
-        "https://raw.githubusercontent.com/mehmetkm6005-cell/IsletmeTakipAPK/main/app/src/main/assets/isletme_takip_data.json"
+    private lateinit var root: LinearLayout
 
-    private var data: JSONObject? = null
-    private var sheetNames = ArrayList<String>()
+    private val sheetNames = ArrayList<String>()
+
+    private lateinit var jsonData: JSONObject
+
     private var currentSheetName: String? = null
 
-    private lateinit var rootLayout: LinearLayout
+    private var isLoadingData = false
+
+    private val jsonUrl =
+        "https://raw.githubusercontent.com/mehmetkm6005-cell/IsletmeTakipAPK/main/app/src/main/assets/isletme_takip_data.json"
 
     private val refreshHandler = Handler(Looper.getMainLooper())
 
     private val refreshRunnable = object : Runnable {
         override fun run() {
+
             loadDataFromGitHub(
                 showSuccessMessage = false,
                 refreshCurrentSheet = true
@@ -50,7 +56,15 @@ class MainActivity : Activity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    private fun dp(value: Int): Int {
+        return (
+            value * resources.displayMetrics.density
+        ).toInt()
+    }
+
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
         super.onCreate(savedInstanceState)
 
         showLoginScreen()
@@ -67,7 +81,11 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
-        refreshHandler.removeCallbacks(refreshRunnable)
+
+        refreshHandler.removeCallbacks(
+            refreshRunnable
+        )
+
         super.onDestroy()
     }
 
@@ -75,19 +93,34 @@ class MainActivity : Activity() {
         showSuccessMessage: Boolean,
         refreshCurrentSheet: Boolean
     ) {
+
+        if (isLoadingData) {
+            return
+        }
+
+        isLoadingData = true
+
         thread {
 
             try {
-                val url = URL(
-                    jsonUrl + "?t=" + System.currentTimeMillis()
-                )
+
+                val cacheBust =
+                    System.currentTimeMillis()
+
+                val url =
+                    URL("$jsonUrl?t=$cacheBust")
 
                 val connection =
-                    url.openConnection() as HttpURLConnection
+                    url.openConnection()
+                        as HttpURLConnection
 
                 connection.requestMethod = "GET"
+
                 connection.connectTimeout = 15000
-                connection.readTimeout = 20000
+
+                connection.readTimeout = 15000
+
+                connection.useCaches = false
 
                 connection.setRequestProperty(
                     "Cache-Control",
@@ -102,94 +135,86 @@ class MainActivity : Activity() {
                 val responseCode =
                     connection.responseCode
 
-                if (responseCode != HttpURLConnection.HTTP_OK) {
+                if (
+                    responseCode !=
+                    HttpURLConnection.HTTP_OK
+                ) {
+
                     throw Exception(
-                        "HTTP $responseCode"
+                        "GitHub bağlantısı başarısız. Kod: $responseCode"
                     )
                 }
 
-                val jsonText =
-                    connection.inputStream
+                val text =
+                    connection
+                        .inputStream
                         .bufferedReader()
-                        .use { it.readText() }
+                        .use {
+                            it.readText()
+                        }
 
                 connection.disconnect()
 
-                val jsonObject =
-                    JSONObject(jsonText)
+                val newJson =
+                    JSONObject(text)
 
                 val newSheetNames =
-                    ArrayList<String>()
-
-                if (jsonObject.has("sheetOrder")) {
-
-                    val orderArray =
-                        jsonObject.getJSONArray(
-                            "sheetOrder"
-                        )
-
-                    for (
-                        i in 0 until orderArray.length()
-                    ) {
-                        newSheetNames.add(
-                            orderArray.getString(i)
-                        )
-                    }
-
-                } else {
-
-                    val sheetsObject =
-                        jsonObject.getJSONObject(
-                            "sheets"
-                        )
-
-                    val keys =
-                        sheetsObject.keys()
-
-                    while (keys.hasNext()) {
-                        newSheetNames.add(
-                            keys.next()
-                        )
-                    }
-                }
-
-                data = jsonObject
-                sheetNames = newSheetNames
+                    getVisibleSheetNames(
+                        newJson
+                    )
 
                 runOnUiThread {
+
+                    jsonData = newJson
+
+                    sheetNames.clear()
+
+                    sheetNames.addAll(
+                        newSheetNames
+                    )
+
+                    isLoadingData = false
+
+                    if (showSuccessMessage) {
+
+                        Toast.makeText(
+                            this,
+                            "Güncel veriler GitHub'dan alındı.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
 
                     if (
                         refreshCurrentSheet &&
                         currentSheetName != null
                     ) {
-                        showSheet(
-                            currentSheetName!!
-                        )
-                    }
 
-                    if (showSuccessMessage) {
-                        Toast.makeText(
-                            this,
-                            "Veriler GitHub'dan güncellendi.",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        val sheet =
+                            currentSheetName
+
+                        if (
+                            sheet != null &&
+                            sheetNames.contains(sheet)
+                        ) {
+
+                            showSheet(sheet)
+                        }
                     }
                 }
 
             } catch (e: Exception) {
 
-                e.printStackTrace()
-
                 runOnUiThread {
 
-                    if (data == null) {
-                        loadLocalData()
-                    }
+                    isLoadingData = false
 
                     if (showSuccessMessage) {
+
+                        loadLocalData()
+
                         Toast.makeText(
                             this,
-                            "GitHub verisine ulaşılamadı. Yerel veri kullanılıyor.",
+                            "Güncel veri alınamadı. Yerel veri kullanılıyor.",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -198,126 +223,170 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun loadLocalData() {
+    private fun getVisibleSheetNames(
+        jsonObject: JSONObject
+    ): ArrayList<String> {
+
+        val result =
+            ArrayList<String>()
 
         try {
 
-            val inputStream =
-                assets.open(
-                    "isletme_takip_data.json"
-                )
+            if (
+                jsonObject.has("sheetOrder")
+            ) {
 
-            val jsonText =
-                inputStream
-                    .bufferedReader()
-                    .use { it.readText() }
-
-            inputStream.close()
-
-            val jsonObject =
-                JSONObject(jsonText)
-
-            data = jsonObject
-
-            val newSheetNames =
-                ArrayList<String>()
-
-            if (jsonObject.has("sheetOrder")) {
-
-                val orderArray =
+                val order =
                     jsonObject.getJSONArray(
                         "sheetOrder"
                     )
 
                 for (
-                    i in 0 until orderArray.length()
+                    i in 0 until order.length()
                 ) {
-                    newSheetNames.add(
-                        orderArray.getString(i)
-                    )
+
+                    val name =
+                        order.getString(i)
+
+                    if (
+                        name.equals(
+                            "ANA SAYFA",
+                            ignoreCase = true
+                        )
+                    ) {
+                        continue
+                    }
+
+                    if (
+                        name.endsWith(
+                            "-data",
+                            ignoreCase = true
+                        )
+                    ) {
+                        continue
+                    }
+
+                    result.add(name)
                 }
 
             } else {
 
-                val sheetsObject =
+                val sheets =
                     jsonObject.getJSONObject(
                         "sheets"
                     )
 
                 val keys =
-                    sheetsObject.keys()
+                    sheets.keys()
 
                 while (keys.hasNext()) {
-                    newSheetNames.add(
+
+                    val name =
                         keys.next()
-                    )
+
+                    if (
+                        name.equals(
+                            "ANA SAYFA",
+                            ignoreCase = true
+                        )
+                    ) {
+                        continue
+                    }
+
+                    if (
+                        name.endsWith(
+                            "-data",
+                            ignoreCase = true
+                        )
+                    ) {
+                        continue
+                    }
+
+                    result.add(name)
                 }
             }
 
-            sheetNames = newSheetNames
+        } catch (e: Exception) {
+
+            e.printStackTrace()
+        }
+
+        return result
+    }
+
+    private fun loadLocalData() {
+
+        try {
+
+            val text =
+                assets.open(
+                    "isletme_takip_data.json"
+                )
+                    .bufferedReader()
+                    .use {
+                        it.readText()
+                    }
+
+            jsonData =
+                JSONObject(text)
+
+            sheetNames.clear()
+
+            sheetNames.addAll(
+                getVisibleSheetNames(
+                    jsonData
+                )
+            )
 
         } catch (e: Exception) {
-            e.printStackTrace()
+
+            Toast.makeText(
+                this,
+                "JSON okunamadı: ${e.message}",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
-    private fun createRoot(): LinearLayout {
+    private fun createRoot() {
 
-        rootLayout =
+        root =
             LinearLayout(this)
 
-        rootLayout.orientation =
+        root.orientation =
             LinearLayout.VERTICAL
 
-        rootLayout.setBackgroundColor(
+        root.setBackgroundColor(
             Color.WHITE
         )
 
-        rootLayout.layoutParams =
-            ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
+        root.setPadding(
+            dp(12),
+            dp(10),
+            dp(12),
+            dp(10)
+        )
 
-        return rootLayout
+        setContentView(root)
     }
 
-    private fun addLogoBar(
-        parent: LinearLayout
-    ) {
+    private fun addLogoBar() {
 
-        val logoBar =
+        val bar =
             LinearLayout(this)
 
-        logoBar.orientation =
+        bar.orientation =
             LinearLayout.HORIZONTAL
 
-        logoBar.gravity =
+        bar.gravity =
             Gravity.CENTER_VERTICAL
-
-        logoBar.setPadding(
-            20,
-            14,
-            20,
-            14
-        )
-
-        logoBar.setBackgroundColor(
-            Color.rgb(0, 102, 204)
-        )
 
         val logo =
             TextView(this)
 
-        logo.text =
-            "İŞLETME TAKİP"
+        logo.text = "İT"
 
-        logo.textSize =
-            19f
-
-        logo.setTextColor(
-            Color.WHITE
-        )
+        logo.textSize = 20f
 
         logo.setTypeface(
             null,
@@ -325,7 +394,19 @@ class MainActivity : Activity() {
         )
 
         logo.gravity =
-            Gravity.CENTER_VERTICAL
+            Gravity.CENTER
+
+        logo.setTextColor(
+            Color.WHITE
+        )
+
+        logo.setBackgroundColor(
+            Color.rgb(
+                0,
+                83,
+                155
+            )
+        )
 
         logo.setOnClickListener {
 
@@ -334,58 +415,21 @@ class MainActivity : Activity() {
             showMainMenu()
         }
 
-        logoBar.addView(
+        bar.addView(
             logo,
             LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                1f
+                dp(55),
+                dp(55)
             )
-        )
-
-        parent.addView(
-            logoBar,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-    }
-
-    private fun showLoginScreen() {
-
-        val root =
-            createRoot()
-
-        addLogoBar(root)
-
-        val scroll =
-            ScrollView(this)
-
-        val content =
-            LinearLayout(this)
-
-        content.orientation =
-            LinearLayout.VERTICAL
-
-        content.gravity =
-            Gravity.CENTER_HORIZONTAL
-
-        content.setPadding(
-            40,
-            70,
-            40,
-            40
         )
 
         val title =
             TextView(this)
 
         title.text =
-            "İŞLETME TAKİP"
+            "  İŞLETME TAKİP"
 
-        title.textSize =
-            28f
+        title.textSize = 20f
 
         title.setTypeface(
             null,
@@ -393,53 +437,77 @@ class MainActivity : Activity() {
         )
 
         title.setTextColor(
-            Color.rgb(0, 102, 204)
+            Color.rgb(
+                0,
+                83,
+                155
+            )
+        )
+
+        title.gravity =
+            Gravity.CENTER_VERTICAL
+
+        bar.addView(
+            title,
+            LinearLayout.LayoutParams(
+                0,
+                dp(55),
+                1f
+            )
+        )
+
+        root.addView(bar)
+
+        val space =
+            Space(this)
+
+        root.addView(
+            space,
+            LinearLayout.LayoutParams(
+                1,
+                dp(10)
+            )
+        )
+    }
+
+    private fun showLoginScreen() {
+
+        currentSheetName = null
+
+        createRoot()
+
+        addLogoBar()
+
+        val title =
+            TextView(this)
+
+        title.text =
+            "Kullanıcı Girişi"
+
+        title.textSize = 24f
+
+        title.setTypeface(
+            null,
+            Typeface.BOLD
         )
 
         title.gravity =
             Gravity.CENTER
 
-        content.addView(
+        title.setTextColor(
+            Color.rgb(
+                0,
+                83,
+                155
+            )
+        )
+
+        root.addView(
             title,
             LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(55)
             )
-        )
-
-        val subtitle =
-            TextView(this)
-
-        subtitle.text =
-            "Kullanıcı Girişi"
-
-        subtitle.textSize =
-            20f
-
-        subtitle.setTypeface(
-            null,
-            Typeface.BOLD
-        )
-
-        subtitle.gravity =
-            Gravity.CENTER
-
-        val subtitleParams =
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-
-        subtitleParams.setMargins(
-            0,
-            20,
-            0,
-            35
-        )
-
-        content.addView(
-            subtitle,
-            subtitleParams
         )
 
         val username =
@@ -448,15 +516,16 @@ class MainActivity : Activity() {
         username.hint =
             "Kullanıcı Adı"
 
-        username.inputType =
-            InputType.TYPE_CLASS_TEXT
+        username.setSingleLine(true)
 
-        content.addView(
+        root.addView(
             username,
             LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(55)
+            ).apply {
+                topMargin = dp(20)
+            }
         )
 
         val password =
@@ -465,69 +534,86 @@ class MainActivity : Activity() {
         password.hint =
             "Şifre"
 
+        password.setSingleLine(true)
+
         password.inputType =
             InputType.TYPE_CLASS_TEXT or
-                    InputType.TYPE_TEXT_VARIATION_PASSWORD
+                InputType.TYPE_TEXT_VARIATION_PASSWORD
 
-        val passwordParams =
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-
-        passwordParams.setMargins(
-            0,
-            15,
-            0,
-            20
-        )
-
-        content.addView(
+        root.addView(
             password,
-            passwordParams
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(55)
+            ).apply {
+                topMargin = dp(10)
+            }
         )
 
-        val loginButton =
+        val login =
             Button(this)
 
-        loginButton.text =
+        login.text =
             "GİRİŞ YAP"
 
-        loginButton.setOnClickListener {
+        login.textSize =
+            16f
+
+        login.setOnClickListener {
 
             showMainMenu()
         }
 
-        content.addView(
-            loginButton,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-
-        scroll.addView(content)
-
         root.addView(
-            scroll,
+            login,
             LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(55)
+            ).apply {
+                topMargin = dp(20)
+            }
         )
-
-        setContentView(root)
     }
 
     private fun showMainMenu() {
 
         currentSheetName = null
 
-        val root =
-            createRoot()
+        createRoot()
 
-        addLogoBar(root)
+        addLogoBar()
+
+        val title =
+            TextView(this)
+
+        title.text =
+            "ANA MENÜ"
+
+        title.textSize = 24f
+
+        title.setTypeface(
+            null,
+            Typeface.BOLD
+        )
+
+        title.gravity =
+            Gravity.CENTER
+
+        title.setTextColor(
+            Color.rgb(
+                0,
+                83,
+                155
+            )
+        )
+
+        root.addView(
+            title,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(50)
+            )
+        )
 
         val scroll =
             ScrollView(this)
@@ -539,64 +625,40 @@ class MainActivity : Activity() {
             LinearLayout.VERTICAL
 
         menu.setPadding(
-            20,
-            20,
-            20,
-            30
+            0,
+            dp(10),
+            0,
+            dp(20)
         )
 
-        for (sheetName in sheetNames) {
-
-            if (
-                sheetName.equals(
-                    "ANA SAYFA",
-                    ignoreCase = true
-                )
-            ) {
-                continue
-            }
-
-            if (
-                sheetName.endsWith(
-                    "-data",
-                    ignoreCase = true
-                )
-            ) {
-                continue
-            }
+        for (
+            name in sheetNames
+        ) {
 
             val button =
                 Button(this)
 
             button.text =
-                sheetName
+                name
 
             button.textSize =
-                16f
+                15f
 
-            button.gravity =
-                Gravity.CENTER
+            button.setAllCaps(false)
 
             button.setOnClickListener {
-                showSheet(sheetName)
+
+                showSheet(name)
             }
-
-            val params =
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-
-            params.setMargins(
-                0,
-                0,
-                0,
-                10
-            )
 
             menu.addView(
                 button,
-                params
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(55)
+                ).apply {
+                    bottomMargin = dp(6)
+                }
             )
         }
 
@@ -605,13 +667,11 @@ class MainActivity : Activity() {
         root.addView(
             scroll,
             LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f
             )
         )
-
-        setContentView(root)
     }
 
     private fun showSheet(
@@ -621,252 +681,452 @@ class MainActivity : Activity() {
         currentSheetName =
             sheetName
 
-        val root =
-            createRoot()
+        createRoot()
 
-        addLogoBar(root)
+        addLogoBar()
 
-        val scroll =
-            ScrollView(this)
+        val titleBar =
+            LinearLayout(this)
 
-        val horizontal =
-            HorizontalScrollView(this)
+        titleBar.orientation =
+            LinearLayout.VERTICAL
 
-        val table =
-            TableLayout(this)
+        titleBar.gravity =
+            Gravity.CENTER
 
-        table.setPadding(
-            10,
-            10,
-            10,
-            30
+        titleBar.setBackgroundColor(
+            Color.rgb(
+                0,
+                83,
+                155
+            )
         )
 
-        val jsonData =
-            data
+        val title =
+            TextView(this)
 
-        if (jsonData == null) {
+        title.text =
+            sheetName
+
+        title.textSize =
+            20f
+
+        title.setTypeface(
+            null,
+            Typeface.BOLD
+        )
+
+        title.setTextColor(
+            Color.WHITE
+        )
+
+        title.gravity =
+            Gravity.CENTER
+
+        titleBar.addView(
+            title,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(50)
+            )
+        )
+
+        root.addView(
+            titleBar,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(55)
+            )
+        )
+
+        try {
+
+            val sheets =
+                jsonData.getJSONObject(
+                    "sheets"
+                )
+
+            val sheetObject =
+                sheets.getJSONObject(
+                    sheetName
+                )
+
+            val cells =
+                sheetObject.getJSONArray(
+                    "cells"
+                )
+
+            val cellMap =
+                HashMap<String, String>()
+
+            var maxRow = 0
+            var maxCol = 0
+
+            for (
+                i in 0 until cells.length()
+            ) {
+
+                val cell =
+                    cells.getJSONObject(i)
+
+                val address =
+                    cell.optString("r")
+
+                val value =
+                    cell.optString(
+                        "v",
+                        ""
+                    )
+
+                if (
+                    address.isEmpty()
+                ) {
+                    continue
+                }
+
+                cellMap[address] =
+                    value
+
+                val match =
+                    Regex(
+                        "^([A-Z]+)([0-9]+)$"
+                    ).find(address)
+
+                if (match != null) {
+
+                    val colLetters =
+                        match.groupValues[1]
+
+                    val rowNumber =
+                        match.groupValues[2].toInt()
+
+                    var columnNumber =
+                        0
+
+                    for (
+                        ch in colLetters
+                    ) {
+
+                        columnNumber =
+                            columnNumber * 26 +
+                                (
+                                    ch - 'A' + 1
+                                )
+                    }
+
+                    if (
+                        rowNumber > maxRow
+                    ) {
+                        maxRow =
+                            rowNumber
+                    }
+
+                    if (
+                        columnNumber > maxCol
+                    ) {
+                        maxCol =
+                            columnNumber
+                    }
+                }
+            }
+
+            val verticalScroll =
+                ScrollView(this)
+
+            verticalScroll.setFillViewport(
+                true
+            )
+
+            val horizontalScroll =
+                HorizontalScrollView(this)
+
+            horizontalScroll.setFillViewport(
+                true
+            )
+
+            val table =
+                TableLayout(this)
+
+            table.setPadding(
+                dp(4),
+                dp(6),
+                dp(4),
+                dp(20)
+            )
+
+            val visibleColumns =
+                ArrayList<Int>()
+
+            for (
+                columnNumber in 1..maxCol
+            ) {
+
+                var hasValue = false
+
+                for (
+                    rowNumber in 1..maxRow
+                ) {
+
+                    val address =
+                        columnNumberToLetters(
+                            columnNumber
+                        ) + rowNumber
+
+                    val value =
+                        cellMap[address] ?: ""
+
+                    if (
+                        value.isNotBlank()
+                    ) {
+
+                        hasValue = true
+
+                        break
+                    }
+                }
+
+                if (hasValue) {
+
+                    visibleColumns.add(
+                        columnNumber
+                    )
+                }
+            }
+
+            for (
+                rowNumber in 1..maxRow
+            ) {
+
+                val tableRow =
+                    TableRow(this)
+
+                tableRow.setPadding(
+                    0,
+                    dp(1),
+                    0,
+                    dp(1)
+                )
+
+                for (
+                    columnNumber in visibleColumns
+                ) {
+
+                    val columnLetters =
+                        columnNumberToLetters(
+                            columnNumber
+                        )
+
+                    val address =
+                        columnLetters +
+                            rowNumber
+
+                    val textValue =
+                        cellMap[address] ?: ""
+
+                    val cell =
+                        TextView(this)
+
+                    cell.text =
+                        textValue
+
+                    cell.textSize =
+                        if (
+                            rowNumber <= 3
+                        ) {
+                            13f
+                        } else {
+                            12f
+                        }
+
+                    cell.gravity =
+                        Gravity.CENTER_VERTICAL
+
+                    cell.setPadding(
+                        dp(10),
+                        dp(9),
+                        dp(10),
+                        dp(9)
+                    )
+
+                    if (
+                        rowNumber <= 3 &&
+                        textValue.isNotBlank()
+                    ) {
+
+                        cell.setTypeface(
+                            null,
+                            Typeface.BOLD
+                        )
+
+                        cell.setTextColor(
+                            Color.WHITE
+                        )
+
+                        cell.setBackgroundColor(
+                            Color.rgb(
+                                0,
+                                83,
+                                155
+                            )
+                        )
+
+                    } else {
+
+                        cell.setTextColor(
+                            Color.rgb(
+                                45,
+                                45,
+                                45
+                            )
+                        )
+
+                        if (
+                            rowNumber % 2 == 0
+                        ) {
+
+                            cell.setBackgroundColor(
+                                Color.rgb(
+                                    240,
+                                    246,
+                                    252
+                                )
+                            )
+
+                        } else {
+
+                            cell.setBackgroundColor(
+                                Color.WHITE
+                            )
+                        }
+                    }
+
+                    val params =
+                        TableRow.LayoutParams(
+                            dp(145),
+                            ViewGroup.LayoutParams.WRAP_CONTENT
+                        )
+
+                    params.setMargins(
+                        dp(1),
+                        dp(1),
+                        dp(1),
+                        dp(1)
+                    )
+
+                    tableRow.addView(
+                        cell,
+                        params
+                    )
+                }
+
+                table.addView(
+                    tableRow
+                )
+            }
+
+            horizontalScroll.addView(
+                table
+            )
+
+            verticalScroll.addView(
+                horizontalScroll
+            )
+
+            root.addView(
+                verticalScroll,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    0,
+                    1f
+                )
+            )
+
+        } catch (e: Exception) {
 
             val error =
                 TextView(this)
 
             error.text =
-                "Veri bulunamadı."
+                "Veriler gösterilemedi.\n\n$e"
 
             error.textSize =
-                18f
+                16f
+
+            error.gravity =
+                Gravity.CENTER
 
             error.setPadding(
-                30,
-                30,
-                30,
-                30
+                dp(15),
+                dp(15),
+                dp(15),
+                dp(15)
             )
 
-            table.addView(error)
-
-        } else {
-
-            try {
-
-                val sheetsObject =
-                    jsonData.getJSONObject(
-                        "sheets"
-                    )
-
-                val sheetObject =
-                    sheetsObject.getJSONObject(
-                        sheetName
-                    )
-
-                val cells =
-                    sheetObject.getJSONArray(
-                        "cells"
-                    )
-
-                val rows =
-                    LinkedHashMap<
-                            Int,
-                            MutableList<CellData>
-                            >()
-
-                for (
-                    i in 0 until cells.length()
-                ) {
-
-                    val cell =
-                        cells.getJSONObject(i)
-
-                    val address =
-                        cell.optString(
-                            "r",
-                            ""
-                        )
-
-                    val value =
-                        cell.optString(
-                            "v",
-                            ""
-                        )
-
-                    val rowNumber =
-                        extractRowNumber(
-                            address
-                        )
-
-                    val columnNumber =
-                        extractColumnNumber(
-                            address
-                        )
-
-                    if (rowNumber > 0) {
-
-                        if (
-                            !rows.containsKey(
-                                rowNumber
-                            )
-                        ) {
-                            rows[rowNumber] =
-                                ArrayList()
-                        }
-
-                        rows[rowNumber]!!.add(
-                            CellData(
-                                columnNumber,
-                                value
-                            )
-                        )
-                    }
-                }
-
-                for (
-                    (_, rowCells) in rows
-                ) {
-
-                    rowCells.sortBy {
-                        it.column
-                    }
-
-                    val row =
-                        TableRow(this)
-
-                    for (
-                        cell in rowCells
-                    ) {
-
-                        val text =
-                            TextView(this)
-
-                        text.text =
-                            cell.value
-
-                        text.textSize =
-                            14f
-
-                        text.setTextColor(
-                            Color.BLACK
-                        )
-
-                        text.setPadding(
-                            12,
-                            10,
-                            12,
-                            10
-                        )
-
-                        text.setBackgroundResource(
-                            android.R.drawable.editbox_background
-                        )
-
-                        row.addView(
-                            text,
-                            TableRow.LayoutParams(
-                                ViewGroup.LayoutParams.WRAP_CONTENT,
-                                ViewGroup.LayoutParams.WRAP_CONTENT
-                            )
-                        )
-                    }
-
-                    table.addView(row)
-                }
-
-            } catch (e: Exception) {
-
-                e.printStackTrace()
-
-                val error =
-                    TextView(this)
-
-                error.text =
-                    "Bu sekmenin verileri okunamadı."
-
-                error.textSize =
-                    18f
-
-                error.setPadding(
-                    30,
-                    30,
-                    30,
-                    30
+            root.addView(
+                error,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    0,
+                    1f
                 )
-
-                table.addView(error)
-            }
+            )
         }
 
-        horizontal.addView(table)
+        val back =
+            Button(this)
 
-        scroll.addView(horizontal)
+        back.text =
+            "ANA MENÜYE DÖN"
+
+        back.textSize =
+            15f
+
+        back.setOnClickListener {
+
+            currentSheetName =
+                null
+
+            showMainMenu()
+        }
 
         root.addView(
-            scroll,
+            back,
             LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(55)
             )
         )
-
-        setContentView(root)
     }
 
-    private fun extractRowNumber(
-        address: String
-    ): Int {
+    private fun columnNumberToLetters(
+        columnNumber: Int
+    ): String {
 
-        val digits =
-            address.filter {
-                it.isDigit()
-            }
+        var number =
+            columnNumber
 
-        return digits.toIntOrNull() ?: 0
-    }
+        var result =
+            ""
 
-    private fun extractColumnNumber(
-        address: String
-    ): Int {
+        while (
+            number > 0
+        ) {
 
-        val letters =
-            address
-                .filter {
-                    it.isLetter()
-                }
-                .uppercase()
-
-        var result = 0
-
-        for (char in letters) {
+            val remainder =
+                (number - 1) % 26
 
             result =
-                result * 26 +
-                        (char - 'A' + 1)
+                (
+                    'A'.code + remainder
+                )
+                    .toChar()
+                    .toString() +
+                    result
+
+            number =
+                (number - 1) / 26
         }
 
         return result
     }
-
-    private data class CellData(
-        val column: Int,
-        val value: String
-    )
 }
