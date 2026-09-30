@@ -22,6 +22,7 @@ import android.widget.Toast
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
@@ -35,6 +36,8 @@ class MainActivity : Activity() {
     private var currentSheetName: String? = null
 
     private var isLoadingData = false
+
+    private var loggedInUsername: String? = null
 
     private val jsonUrl =
         "https://raw.githubusercontent.com/mehmetkm6005-cell/IsletmeTakipAPK/main/app/src/main/assets/isletme_takip_data.json"
@@ -62,6 +65,128 @@ class MainActivity : Activity() {
         ).toInt()
     }
 
+    // ============================================================
+    // KULLANICI YETKİLENDİRME
+    // ============================================================
+
+    data class AppUser(
+        val username: String,
+        val passwordHash: String,
+        val active: Boolean,
+        val allowedSheets: Set<String>
+    )
+
+    private fun sha256(text: String): String {
+
+        val bytes = MessageDigest
+            .getInstance("SHA-256")
+            .digest(text.toByteArray())
+
+        return bytes.joinToString("") {
+            "%02x".format(it)
+        }
+    }
+
+    private fun allSheetAccess(): Set<String> {
+        return setOf("*")
+    }
+
+    private fun createUsers(): List<AppUser> {
+
+        return listOf(
+
+            AppUser(
+                username = "MK0560",
+                passwordHash = sha256("0560"),
+                active = true,
+                allowedSheets = allSheetAccess()
+            ),
+
+            AppUser(
+                username = "BH0560",
+                passwordHash = sha256("0560"),
+                active = true,
+                allowedSheets = allSheetAccess()
+            )
+
+        )
+    }
+
+    private fun authenticateUser(
+        username: String,
+        password: String
+    ): AppUser? {
+
+        val user = createUsers().firstOrNull {
+            it.username.equals(
+                username.trim(),
+                ignoreCase = true
+            )
+        } ?: return null
+
+        if (!user.active) {
+            return null
+        }
+
+        val enteredHash = sha256(password)
+
+        if (enteredHash != user.passwordHash) {
+            return null
+        }
+
+        return user
+    }
+
+    private fun isSheetAuthorized(
+        sheetName: String
+    ): Boolean {
+
+        val username = loggedInUsername
+            ?: return false
+
+        val user = createUsers().firstOrNull {
+            it.username.equals(
+                username,
+                ignoreCase = true
+            )
+        } ?: return false
+
+        if (!user.active) {
+            return false
+        }
+
+        if (user.allowedSheets.contains("*")) {
+            return true
+        }
+
+        return user.allowedSheets.any {
+            it.equals(
+                sheetName,
+                ignoreCase = true
+            )
+        }
+    }
+
+    private fun getAuthorizedSheetNames(
+        allNames: ArrayList<String>
+    ): ArrayList<String> {
+
+        val result = ArrayList<String>()
+
+        for (name in allNames) {
+
+            if (isSheetAuthorized(name)) {
+                result.add(name)
+            }
+        }
+
+        return result
+    }
+
+    // ============================================================
+    // UYGULAMA
+    // ============================================================
+
     override fun onCreate(
         savedInstanceState: Bundle?
     ) {
@@ -88,6 +213,10 @@ class MainActivity : Activity() {
 
         super.onDestroy()
     }
+
+    // ============================================================
+    // GITHUB VERİ ALMA
+    // ============================================================
 
     private fun loadDataFromGitHub(
         showSuccessMessage: Boolean,
@@ -158,7 +287,7 @@ class MainActivity : Activity() {
                 val newJson =
                     JSONObject(text)
 
-                val newSheetNames =
+                val allNames =
                     getVisibleSheetNames(
                         newJson
                     )
@@ -167,11 +296,24 @@ class MainActivity : Activity() {
 
                     jsonData = newJson
 
-                    sheetNames.clear()
+                    if (loggedInUsername != null) {
 
-                    sheetNames.addAll(
-                        newSheetNames
-                    )
+                        sheetNames.clear()
+
+                        sheetNames.addAll(
+                            getAuthorizedSheetNames(
+                                allNames
+                            )
+                        )
+
+                    } else {
+
+                        sheetNames.clear()
+
+                        sheetNames.addAll(
+                            allNames
+                        )
+                    }
 
                     isLoadingData = false
 
@@ -186,7 +328,8 @@ class MainActivity : Activity() {
 
                     if (
                         refreshCurrentSheet &&
-                        currentSheetName != null
+                        currentSheetName != null &&
+                        loggedInUsername != null
                     ) {
 
                         val sheet =
@@ -332,11 +475,19 @@ class MainActivity : Activity() {
 
             sheetNames.clear()
 
-            sheetNames.addAll(
+            val allNames =
                 getVisibleSheetNames(
                     jsonData
                 )
-            )
+
+            if (loggedInUsername != null) {
+
+                sheetNames.addAll(
+                    getAuthorizedSheetNames(
+                        allNames
+                    )
+                )
+            }
 
         } catch (e: Exception) {
 
@@ -347,6 +498,10 @@ class MainActivity : Activity() {
             ).show()
         }
     }
+
+    // ============================================================
+    // ORTAK TASARIM
+    // ============================================================
 
     private fun createRoot() {
 
@@ -412,7 +567,11 @@ class MainActivity : Activity() {
 
             currentSheetName = null
 
-            showMainMenu()
+            if (loggedInUsername != null) {
+                showMainMenu()
+            } else {
+                showLoginScreen()
+            }
         }
 
         bar.addView(
@@ -469,6 +628,10 @@ class MainActivity : Activity() {
             )
         )
     }
+
+    // ============================================================
+    // GİRİŞ EKRANI
+    // ============================================================
 
     private fun showLoginScreen() {
 
@@ -561,6 +724,64 @@ class MainActivity : Activity() {
 
         login.setOnClickListener {
 
+            val enteredUsername =
+                username.text
+                    .toString()
+                    .trim()
+
+            val enteredPassword =
+                password.text
+                    .toString()
+
+            if (
+                enteredUsername.isEmpty() ||
+                enteredPassword.isEmpty()
+            ) {
+
+                Toast.makeText(
+                    this,
+                    "Kullanıcı adı ve şifre giriniz.",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                return@setOnClickListener
+            }
+
+            val user =
+                authenticateUser(
+                    enteredUsername,
+                    enteredPassword
+                )
+
+            if (user == null) {
+
+                Toast.makeText(
+                    this,
+                    "Kullanıcı adı veya şifre hatalı.",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                password.text.clear()
+
+                return@setOnClickListener
+            }
+
+            loggedInUsername =
+                user.username
+
+            val allNames =
+                getVisibleSheetNames(
+                    jsonData
+                )
+
+            sheetNames.clear()
+
+            sheetNames.addAll(
+                getAuthorizedSheetNames(
+                    allNames
+                )
+            )
+
             showMainMenu()
         }
 
@@ -574,6 +795,10 @@ class MainActivity : Activity() {
             }
         )
     }
+
+    // ============================================================
+    // ANA MENÜ
+    // ============================================================
 
     private fun showMainMenu() {
 
@@ -648,7 +873,20 @@ class MainActivity : Activity() {
 
             button.setOnClickListener {
 
-                showSheet(name)
+                if (
+                    isSheetAuthorized(name)
+                ) {
+
+                    showSheet(name)
+
+                } else {
+
+                    Toast.makeText(
+                        this,
+                        "Bu sekmeye yetkiniz yok.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
 
             menu.addView(
@@ -672,11 +910,54 @@ class MainActivity : Activity() {
                 1f
             )
         )
+
+        val logout =
+            Button(this)
+
+        logout.text =
+            "ÇIKIŞ YAP"
+
+        logout.textSize =
+            15f
+
+        logout.setOnClickListener {
+
+            loggedInUsername = null
+
+            currentSheetName = null
+
+            sheetNames.clear()
+
+            showLoginScreen()
+        }
+
+        root.addView(
+            logout,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(55)
+            )
+        )
     }
+
+    // ============================================================
+    // SEKME GÖSTERİMİ
+    // ============================================================
 
     private fun showSheet(
         sheetName: String
     ) {
+
+        if (!isSheetAuthorized(sheetName)) {
+
+            Toast.makeText(
+                this,
+                "Bu sekmeye yetkiniz yok.",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
 
         currentSheetName =
             sheetName
@@ -817,6 +1098,7 @@ class MainActivity : Activity() {
                     if (
                         rowNumber > maxRow
                     ) {
+
                         maxRow =
                             rowNumber
                     }
@@ -824,6 +1106,7 @@ class MainActivity : Activity() {
                     if (
                         columnNumber > maxCol
                     ) {
+
                         maxCol =
                             columnNumber
                     }
@@ -861,7 +1144,8 @@ class MainActivity : Activity() {
                 columnNumber in 1..maxCol
             ) {
 
-                var hasValue = false
+                var hasValue =
+                    false
 
                 for (
                     rowNumber in 1..maxRow
@@ -879,7 +1163,8 @@ class MainActivity : Activity() {
                         value.isNotBlank()
                     ) {
 
-                        hasValue = true
+                        hasValue =
+                            true
 
                         break
                     }
