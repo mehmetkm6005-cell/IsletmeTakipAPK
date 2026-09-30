@@ -2,8 +2,6 @@ package com.mehmet.isletmetakip
 
 import android.app.Activity
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.graphics.Color
 import android.graphics.Typeface
 import android.text.InputType
@@ -37,31 +35,8 @@ class MainActivity : Activity {
 
     private var isLoadingData = false
 
-    private val handler =
-        Handler(Looper.getMainLooper())
-
-    private val refreshInterval =
-        5 * 60 * 1000L
-
     private val jsonUrl =
         "https://raw.githubusercontent.com/mehmetkm6005-cell/IsletmeTakipAPK/main/app/src/main/assets/isletme_takip_data.json"
-
-    private val refreshRunnable =
-        object : Runnable {
-
-            override fun run() {
-
-                loadDataFromGitHub(
-                    showSuccessMessage = false,
-                    refreshCurrentSheet = true
-                )
-
-                handler.postDelayed(
-                    this,
-                    refreshInterval
-                )
-            }
-        }
 
     private fun dp(value: Int): Int {
 
