@@ -60,11 +60,6 @@ class MainActivity : Activity {
             showSuccessMessage = true,
             refreshCurrentSheet = false
         )
-
-        handler.postDelayed(
-            refreshRunnable,
-            refreshInterval
-        )
     }
 
     private fun loadDataFromGitHub(
@@ -1142,14 +1137,5 @@ class MainActivity : Activity {
                 dp(55)
             )
         )
-    }
-
-    override fun onDestroy() {
-
-        handler.removeCallbacks(
-            refreshRunnable
-        )
-
-        super.onDestroy()
     }
 }
